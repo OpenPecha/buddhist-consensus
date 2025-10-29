@@ -37,7 +37,7 @@ def extract_pecha_ids() -> dict[str, str]:
     pecha_ids_path.write_text(json.dumps(pecha_ids, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def get_pecha_data(pecha_id: str) -> str:
+def get_pecha_data(pecha_id: str) -> dict[str, str]:
     """
     Get pecha metadata and texts from OpenPecha-Data
     """
@@ -60,6 +60,7 @@ def get_pecha_data(pecha_id: str) -> str:
     
     # Save pecha data
     pecha_data: dict[str, str] = {
+        "pecha_id": pecha_id,
         "metadata": metadata,
         "texts": volume_texts,
     }
