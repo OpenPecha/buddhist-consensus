@@ -1,0 +1,2 @@
+openpecha @ git+https://github.com/OpenPecha/Toolkit.git
+python-dotenv

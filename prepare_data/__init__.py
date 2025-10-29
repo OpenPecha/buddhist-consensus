@@ -1,5 +1,12 @@
+import os
 import json
 from pathlib import Path
+from openpecha.core.pecha import OpenPechaGitRepo
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 def extract_opfs() -> dict[str, str]:
     """
@@ -26,10 +33,6 @@ def extract_opfs() -> dict[str, str]:
     opfs_path = resource_dir / "clean_opfs.json"
     opfs_path.write_text(json.dumps(opfs, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    
 
-
-if __name__ == "__main__":
-    extract_opfs()
 
     
