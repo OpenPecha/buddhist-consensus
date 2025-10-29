@@ -1,4 +1,3 @@
-import os
 import json
 from pathlib import Path
 from openpecha.config import PECHAS_PATH
@@ -6,17 +5,19 @@ from openpecha.utils import download_pecha
 from openpecha.core.pecha import  OpenPechaFS
 from openpecha.core.metadata import PechaMetadata
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 # Load environment variables from .env file
 load_dotenv()
 
+RESOURCE_DIR = Path(__file__).parent.parent / "resources"
+OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 
 def extract_pecha_ids() -> dict[str, str]:
     """
     Extract pecha ids from clean_pechas.txt and save to pechas.json
     """
-    resource_dir = Path(__file__).parent.parent / "resources"
-    clean_pechas_path = resource_dir / "clean_pechas.txt"
+    clean_pechas_path = RESOURCE_DIR / "clean_pechas.txt"
     clean_pechas: list[str] = clean_pechas_path.read_text(encoding="utf-8").splitlines()
 
     # Remove leading and trailing whitespace
@@ -67,8 +68,15 @@ def get_pecha_data(pecha_id: str) -> dict[str, str]:
     
     return pecha_data
 
+def get_and_save_all_pecha_data():
+    pecha_ids_path = RESOURCE_DIR / "clean_pecha_ids.json"
+    pecha_ids: dict[str, str] = json.loads(pecha_ids_path.read_text(encoding="utf-8"))
+    pecha_ids: list[str] = list(pecha_ids.keys())
+
+    for pecha_id in tqdm(pecha_ids, desc="Getting Pecha Data"):
+        pecha_data = get_pecha_data(pecha_id)
+        pecha_data_path = OUTPUT_DIR / f"{pecha_id}.json"
+        pecha_data_path.write_text(json.dumps(pecha_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
 if __name__ == "__main__":
-    pecha_id = "P000270"
-    pecha_data = get_pecha_data(pecha_id)
-    print(pecha_data)
-    
+    get_and_save_all_pecha_data()
