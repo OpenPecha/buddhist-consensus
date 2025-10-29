@@ -10,30 +10,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def extract_opfs() -> dict[str, str]:
+def extract_pecha_ids() -> dict[str, str]:
     """
-    Extract opfs from clean_opfs.txt and save to opfs.json
+    Extract pecha ids from clean_pechas.txt and save to pechas.json
     """
     resource_dir = Path(__file__).parent.parent / "resources"
-    clean_opfs_path = resource_dir / "clean_opfs.txt"
-    clean_opfs: list[str] = clean_opfs_path.read_text(encoding="utf-8").splitlines()
+    clean_pechas_path = resource_dir / "clean_pechas.txt"
+    clean_pechas: list[str] = clean_pechas_path.read_text(encoding="utf-8").splitlines()
 
     # Remove leading and trailing whitespace
-    clean_opfs: list[str] = [line.strip() for line in clean_opfs]
-    clean_opfs: list[str] = [line for line in clean_opfs if line]
+    clean_pechas: list[str] = [line.strip() for line in clean_pechas]
+    clean_pechas: list[str] = [line for line in clean_pechas if line]
 
     # There should be 266 opfs
-    assert len(clean_opfs) == 266
+    assert len(clean_pechas) == 266
 
     # Extract opf id and title
-    opfs: dict[str, str] = {}
-    for opf in clean_opfs:
-        opf_id, opf_title = opf.split(",")[0], opf.split(",")[1]
-        opfs[opf_id] = opf_title
+    pecha_ids: dict[str, str] = {}
+    for pecha in clean_pechas:
+        pecha_id, pecha_title = pecha.split(",")[0], pecha.split(",")[1]
+        pecha_ids[pecha_id] = pecha_title
 
     # Save opfs to JSON
-    opfs_path = resource_dir / "clean_opfs.json"
-    opfs_path.write_text(json.dumps(opfs, ensure_ascii=False, indent=2), encoding="utf-8")
+    pecha_ids_path = resource_dir / "clean_pecha_ids.json"
+    pecha_ids_path.write_text(json.dumps(pecha_ids, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def get_pecha_text(pecha_id: str) -> str:
@@ -48,7 +48,5 @@ def get_pecha_text(pecha_id: str) -> str:
     return pecha_text
 
 if __name__ == "__main__":
-    pecha_id = "P000270"
-    pecha_text = get_pecha_text(pecha_id)
-    print(pecha_text) 
+    extract_pecha_ids()
     
