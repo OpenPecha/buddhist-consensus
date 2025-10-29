@@ -4,6 +4,7 @@ from pathlib import Path
 from openpecha.config import PECHAS_PATH
 from openpecha.utils import download_pecha
 from openpecha.core.pecha import  OpenPechaFS
+from openpecha.core.metadata import PechaMetadata
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -36,17 +37,37 @@ def extract_pecha_ids() -> dict[str, str]:
     pecha_ids_path.write_text(json.dumps(pecha_ids, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def get_pecha_text(pecha_id: str) -> str:
+def get_pecha_data(pecha_id: str) -> str:
     """
-    Get pecha text from OpenPecha-Data
+    Get pecha metadata and texts from OpenPecha-Data
     """
     pecha_download_path = PECHAS_PATH
     pecha_path = download_pecha(pecha_id, pecha_download_path)
 
     pecha = OpenPechaFS(pecha_path / f"{pecha_id}.opf", pecha_id)
-    pecha_text = pecha.bases
-    return pecha_text
+    
+    # Get metadata
+    metadata: PechaMetadata = pecha.meta
+    metadata: dict = metadata.json(ensure_ascii=False, indent=2, by_alias=True)
+    
+    # Get volumes
+    volume_ids: list[str] = list(pecha.components.keys())
+
+    # Get volume texts
+    volume_texts: dict[str, str] = {}
+    for volume_id in volume_ids:
+        volume_texts[volume_id] = Path(pecha.base_path / f"{volume_id}.txt").read_text(encoding="utf-8")
+    
+    # Save pecha data
+    pecha_data: dict[str, str] = {
+        "metadata": metadata,
+        "texts": volume_texts,
+    }
+    
+    return pecha_data
 
 if __name__ == "__main__":
-    extract_pecha_ids()
+    pecha_id = "P000270"
+    pecha_data = get_pecha_data(pecha_id)
+    print(pecha_data)
     
