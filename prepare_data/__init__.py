@@ -11,6 +11,10 @@ def extract_opfs() -> dict[str, str]:
 
     # Remove leading and trailing whitespace
     clean_opfs: list[str] = [line.strip() for line in clean_opfs]
+    clean_opfs: list[str] = [line for line in clean_opfs if line]
+
+    # There should be 266 opfs
+    assert len(clean_opfs) == 266
 
     # Extract opf id and title
     opfs: dict[str, str] = {}
@@ -21,6 +25,8 @@ def extract_opfs() -> dict[str, str]:
     # Save opfs to JSON
     opfs_path = resource_dir / "clean_opfs.json"
     opfs_path.write_text(json.dumps(opfs, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    
 
 
 if __name__ == "__main__":
