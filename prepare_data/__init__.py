@@ -1,7 +1,9 @@
 import os
 import json
 from pathlib import Path
-from openpecha.core.pecha import OpenPechaGitRepo
+from openpecha.config import PECHAS_PATH
+from openpecha.utils import download_pecha
+from openpecha.core.pecha import  OpenPechaFS
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -34,5 +36,19 @@ def extract_opfs() -> dict[str, str]:
     opfs_path.write_text(json.dumps(opfs, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def get_pecha_text(pecha_id: str) -> str:
+    """
+    Get pecha text from OpenPecha-Data
+    """
+    pecha_download_path = PECHAS_PATH
+    pecha_path = download_pecha(pecha_id, pecha_download_path)
 
+    pecha = OpenPechaFS(pecha_path / f"{pecha_id}.opf", pecha_id)
+    pecha_text = pecha.bases
+    return pecha_text
+
+if __name__ == "__main__":
+    pecha_id = "P000270"
+    pecha_text = get_pecha_text(pecha_id)
+    print(pecha_text) 
     
