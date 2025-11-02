@@ -78,5 +78,16 @@ def get_and_save_all_pecha_data():
         pecha_data_path = OUTPUT_DIR / f"{pecha_id}.json"
         pecha_data_path.write_text(json.dumps(pecha_data, ensure_ascii=False, indent=2), encoding="utf-8")
 
+def prepare_kangyur_tengyur():
+    KANGYUR = "P000001"
+    TENGYUR = "P000002"
+    
+    pecha_ids: list[str] = [KANGYUR, TENGYUR]
+    
+    for pecha_id in tqdm(pecha_ids, desc="Getting Pecha Data"):
+        pecha_data = get_pecha_data(pecha_id)
+        pecha_data_path = Path(f"{pecha_id}.json")
+        pecha_data_path.write_text(json.dumps(pecha_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
 if __name__ == "__main__":
-    get_and_save_all_pecha_data()
+    prepare_kangyur_tengyur()
