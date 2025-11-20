@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddhist Consensus</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #8B4513; /* SaddleBrown for a Buddhist robe feel */
+            --secondary-color: #F4A460; /* SandyBrown */
+            --bg-color: #FAF0E6; /* Linen */
+            --text-color: #333;
+            --chat-bg: #fff;
+            --user-msg-bg: #DEB887; /* Burlywood */
+            --ai-msg-bg: #F5DEB3; /* Wheat */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: #fff;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            max-width: 80%;
+            line-height: 1.5;
+            position: relative; /* For positioning actions */
+        }
+
+        /* User message specific padding to accommodate absolute button */
+        .user-message {
+            background-color: var(--user-msg-bg);
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+            padding-bottom: 1.8rem; /* Extra space for the button */
+        }
+
+        .ai-message {
+            background-color: var(--ai-msg-bg);
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+
+        .input-area {
+            background-color: var(--chat-bg);
+            padding: 1rem;
+            border-top: 1px solid #ccc;
+            display: flex;
+            gap: 0.5rem;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: none;
+            height: 50px;
+            font-family: inherit;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 0 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #6F370F;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Perplexity-style Citation Styles */
+        .citation-ref {
+            display: inline-block;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            font-size: 10px;
+            font-weight: bold;
+            margin: 0 2px;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid var(--primary-color);
+            vertical-align: super;
+        }
+
+        .citation-ref:hover {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+
+        .sources-container {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.9em;
+        }
+        
+        .sources-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sources-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .source-card {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            transition: box-shadow 0.2s;
+        }
+
+        .source-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.8);
+        }
+
+        .source-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+            font-weight: bold;
+            color: #444;
+        }
+
+        .source-number {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .source-snippet {
+            color: #666;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-style: italic;
+        }
+
+        /* Message Actions */
+        .message-actions {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .retry-btn {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            border-radius: 50%; /* Circle */
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            cursor: pointer;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .retry-btn:hover {
+            background-color: rgba(255,255,255,0.5);
+            transform: scale(1.1);
+        }
+
+        .retry-btn svg {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* Loading Animation */
+        .loading-container {
+            display: none;
+            padding: 1rem;
+            align-self: flex-start;
+        }
+
+        .dot-flashing {
+            position: relative;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite linear alternate;
+            animation-delay: 0.5s;
+        }
+        .dot-flashing::before, .dot-flashing::after {
+            content: "";
+            display: inline-block;
+            position: absolute;
+            top: 0;
+        }
+        .dot-flashing::before {
+            left: -15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite alternate;
+            animation-delay: 0s;
+        }
+        .dot-flashing::after {
+            left: 15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite alternate;
+            animation-delay: 1s;
+        }
+
+        @keyframes dot-flashing {
+            0% { background-color: var(--primary-color); }
+            50%, 100% { background-color: rgba(139, 69, 19, 0.2); }
+        }
+
+        /* Sources Toggle */
+        .sources-toggle {
+            background: none;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .sources-toggle:hover {
+            background-color: rgba(139, 69, 19, 0.1);
+        }
+
+        .sources-container {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            font-size: 0.9em;
+            display: none; /* Hidden by default */
+        }
+
+        .sources-container.show {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Markdown Content Styles */
+        .markdown-content p {
+            margin-top: 0;
+        }
+        .markdown-content ul, .markdown-content ol {
+            padding-left: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Buddhist Consensus</h1>
+</header>
+
+<div id="chat-container">
+    <!-- Messages will appear here -->
+    <div class="message ai-message">
+        Tashi Delek! I am your Buddhist studies assistant. How can I help you today?
+    </div>
+    
+    <div class="loading-container" id="loading-indicator">
+        <div class="dot-flashing"></div>
+    </div>
+</div>
+
+<div class="input-area">
+    <textarea id="user-input" placeholder="Ask a question about Buddhist texts..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:8001/api/chat';
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const loadingIndicator = document.getElementById('loading-indicator');
+
+    let conversationHistory = [];
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        // Disable UI
+        userInput.value = '';
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        loadingIndicator.style.display = 'block';
+
+        // Add User Message
+        addMessage(text, 'user');
+        conversationHistory.push({ role: "user", content: text });
+
+        try {
+            // Ensure loading is visible and at the bottom
+            chatContainer.appendChild(loadingIndicator); // Move to bottom
+            loadingIndicator.style.display = 'block';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: conversationHistory
+                })
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const data = await response.json();
+            
+            // Process Response
+            const aiResponse = data.response;
+            const sources = data.retrieved_items || [];
+
+            // Update History
+            conversationHistory.push({ role: "assistant", content: aiResponse });
+
+            // Render AI Message with processed citations
+            addMessage(aiResponse, 'ai', sources);
+
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage("I apologize, but I encountered an error connecting to the wisdom server.", 'ai');
+        } finally {
+            // Enable UI
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            loadingIndicator.style.display = 'none';
+            userInput.focus();
+        }
+    }
+
+    function addMessage(content, role, sources = []) {
+        const div = document.createElement('div');
+        div.className = `message ${role}-message`;
+
+        if (role === 'ai') {
+            // 1. Process Citations: Replace [ID] or [ID, ID] with [n] and build source map
+            let processedContent = content;
+            let usedSources = [];
+            let citationCount = 0;
+            
+            // Map ID -> Number
+            const idToNumber = {};
+
+            // Function to get or assign number for an ID
+            const getNumberForId = (id) => {
+                // Strip whitespace
+                id = id.trim();
+                if (!id) return null;
+
+                if (idToNumber[id]) return idToNumber[id];
+
+                const sourceDetail = sources.find(s => s.id === id);
+                if (sourceDetail) {
+                    citationCount++;
+                    idToNumber[id] = citationCount;
+                    usedSources.push({
+                        number: citationCount,
+                        ...sourceDetail
+                    });
+                    return citationCount;
+                }
+                return null;
+            };
+            
+            // Regex to find brackets containing potential IDs (alphanumeric, dashes, underscores, commas, spaces)
+            // We use a broad match then validate contents
+            const citationRegex = /\[([a-zA-Z0-9\-_,\s]+)\]/g;
+            
+            // Replace in text
+            processedContent = processedContent.replace(citationRegex, (match, content) => {
+                // Split by comma or space
+                const parts = content.split(/[,\s]+/).filter(p => p.trim().length > 0);
+                
+                const numbers = parts.map(id => getNumberForId(id)).filter(n => n !== null);
+                
+                if (numbers.length > 0) {
+                    // Create a badge for each number
+                    return numbers.map(num => `<sup class="citation-ref">${num}</sup>`).join('');
+                }
+                
+                // If no valid IDs found, check if we should hide it or leave it.
+                // If it looks like an ID list but we missed the source (e.g. truncated search results), 
+                // we might want to hide it to be clean.
+                // However, if it's regular text like [Note], we should keep it.
+                // Heuristic: If parts look like IDs (e.g. > 5 chars), hide them.
+                const looksLikeId = parts.some(p => p.length > 10); // IDs are usually long
+                if (looksLikeId) return "";
+                
+                return match; 
+            });
+
+            // Render Markdown
+            div.innerHTML = `<div class="markdown-content">${marked.parse(processedContent)}</div>`;
+
+            // Append Sources Section if any
+            if (usedSources.length > 0) {
+                // Sort by number
+                usedSources.sort((a, b) => a.number - b.number);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'sources-toggle';
+                toggleBtn.innerHTML = `<span>View ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources-container';
+                
+                let sourcesHtml = '<div class="sources-title">Sources</div><div class="sources-grid">';
+                usedSources.forEach(src => {
+                    sourcesHtml += `
+                        <div class="source-card">
+                            <div class="source-header">
+                                <div class="source-number">${src.number}</div>
+                                <span>${src.title || "Unknown Source"}</span>
+                            </div>
+                            <div class="source-snippet">
+                                "${src.text}"
+                            </div>
+                        </div>
+                    `;
+                });
+                sourcesHtml += '</div>';
+                sourcesDiv.innerHTML = sourcesHtml;
+                
+                // Toggle Logic
+                toggleBtn.onclick = () => {
+                    sourcesDiv.classList.toggle('show');
+                    const isShown = sourcesDiv.classList.contains('show');
+                    toggleBtn.innerHTML = `<span>${isShown ? 'Hide' : 'View'} ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isShown ? 'rotate(180deg)' : 'rotate(0deg)'}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                };
+
+                div.appendChild(toggleBtn);
+                div.appendChild(sourcesDiv);
+            }
+
+        } else {
+            // User Message
+            div.textContent = content;
+
+            // Add Retry Button
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+            actionsDiv.innerHTML = `<button class="retry-btn" title="Retry Query" onclick="retryMessage(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            </button>`;
+            div.appendChild(actionsDiv);
+        }
+
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function retryMessage(btn) {
+        const messageDiv = btn.closest('.message');
+        let text = "";
+        // Get text content excluding the button
+        for (let node of messageDiv.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                text += node.textContent;
+            }
+        }
+        text = text.trim();
+        
+        if (text) {
+             userInput.value = text;
+             sendMessage();
+        }
+    }
+</script>
+
+</body>
+</html>

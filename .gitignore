@@ -1,3 +1,5 @@
 .env
 outputs/
 .DS_Store
+*.json
+.ipynb
