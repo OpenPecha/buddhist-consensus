@@ -1,7 +1,5 @@
-openpecha @ git+https://github.com/OpenPecha/Toolkit.git
 python-dotenv
 tqdm
-bo_sent_tokenizer @ git+https://github.com/OpenPecha/bo_sent_tokenizer.git
 fastapi
 uvicorn
 langgraph
