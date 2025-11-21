@@ -5,4 +5,5 @@ uvicorn
 langgraph
 pymilvus
 google-genai
+langchain-google-genai
 fastapi
