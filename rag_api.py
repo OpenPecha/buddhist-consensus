@@ -1,9 +1,9 @@
 import os
 import json
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, AsyncGenerator
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -358,6 +358,83 @@ async def chat_main(request: ChatRequest):
     return ChatResponse(
         response=final_response,
         retrieved_items=retrieved_items
+    )
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """
+    SSE endpoint that streams:
+    1. Search results immediately after retrieval
+    2. Generated answer as it's being created
+    """
+    async def event_generator() -> AsyncGenerator[str, None]:
+        lc_messages = []
+        for msg in request.messages:
+            if msg.role == "user":
+                lc_messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                lc_messages.append(AIMessage(content=msg.content))
+            elif msg.role == "system":
+                lc_messages.append(SystemMessage(content=msg.content))
+        
+        inputs = {"messages": lc_messages}
+        
+        retrieved_items = []
+        
+        # Stream through the graph execution
+        async for output in app_graph.astream(inputs):
+            for key, value in output.items():
+                if "messages" in value:
+                    for msg in value["messages"]:
+                        # When we hit the retrieve node, stream search results
+                        if key == "retrieve" and isinstance(msg, ToolMessage):
+                            try:
+                                content = msg.content
+                                if isinstance(content, str):
+                                    data = json.loads(content)
+                                    if isinstance(data, list):
+                                        retrieved_items.extend(data)
+                                        # Stream search results event
+                                        event_data = {
+                                            "type": "search_results",
+                                            "data": data
+                                        }
+                                        yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+                                    elif isinstance(data, dict):
+                                        retrieved_items.append(data)
+                                        event_data = {
+                                            "type": "search_results",
+                                            "data": [data]
+                                        }
+                                        yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        # When we hit generate_answer, stream the answer
+                        if key == "generate_answer" and isinstance(msg, AIMessage):
+                            if not msg.tool_calls:
+                                # Stream the answer content
+                                event_data = {
+                                    "type": "answer",
+                                    "data": str(msg.content)
+                                }
+                                yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+        
+        # Send completion event
+        event_data = {
+            "type": "done",
+            "data": {"retrieved_items": retrieved_items}
+        }
+        yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
     )
 
 if __name__ == "__main__":

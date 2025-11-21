@@ -7,13 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --primary-color: #8B4513; /* SaddleBrown for a Buddhist robe feel */
-            --secondary-color: #F4A460; /* SandyBrown */
-            --bg-color: #FAF0E6; /* Linen */
+            --primary-color: #8B4513;
+            --secondary-color: #F4A460;
+            --bg-color: #FAF0E6;
             --text-color: #333;
             --chat-bg: #fff;
-            --user-msg-bg: #DEB887; /* Burlywood */
-            --ai-msg-bg: #F5DEB3; /* Wheat */
+            --user-msg-bg: #DEB887;
+            --ai-msg-bg: #F5DEB3;
         }
 
         body {
@@ -58,15 +58,14 @@
             border-radius: 8px;
             max-width: 80%;
             line-height: 1.5;
-            position: relative; /* For positioning actions */
+            position: relative;
         }
 
-        /* User message specific padding to accommodate absolute button */
         .user-message {
             background-color: var(--user-msg-bg);
             align-self: flex-end;
             border-bottom-right-radius: 0;
-            padding-bottom: 1.8rem; /* Extra space for the button */
+            padding-bottom: 1.8rem;
         }
 
         .ai-message {
@@ -117,7 +116,144 @@
             cursor: not-allowed;
         }
 
-        /* Perplexity-style Citation Styles */
+        /* Horizontal Search Results with Stack at End */
+        .search-results-container {
+            position: relative;
+            margin-bottom: 1rem;
+            align-self: flex-start;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .search-results-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-start;
+            flex-wrap: nowrap;
+            overflow: visible;
+        }
+
+        .search-result-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            /* Fixed dimensions - smaller to fit 3 boxes + stack */
+            width: 160px;
+            height: 85px;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-result-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .search-result-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+            flex-shrink: 0;
+        }
+
+        .search-result-number {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            text-align: center;
+            line-height: 18px;
+            font-size: 10px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.8rem;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-result-snippet {
+            color: #666;
+            font-size: 0.7rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+            flex: 1;
+        }
+
+        /* Stacked Cards at the End */
+        .search-stack-container {
+            position: relative;
+            /* Fixed dimensions matching card */
+            width: 160px;
+            height: 85px;
+            flex-shrink: 0;
+        }
+
+        .search-result-card.stacked {
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* Fixed dimensions */
+            width: 160px;
+            height: 85px;
+        }
+
+        .search-result-card.stack-top {
+            z-index: 3;
+            transform: none;
+        }
+
+        .search-result-card.stack-1 {
+            transform: translateX(5px) translateY(5px);
+            opacity: 0.7;
+            z-index: 2;
+        }
+
+        .search-result-card.stack-2 {
+            transform: translateX(10px) translateY(10px);
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        .search-result-card.stack-3 {
+            transform: translateX(15px) translateY(15px);
+            opacity: 0.3;
+            z-index: 0;
+        }
+
+        .stack-count {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 12px;
+            padding: 3px 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            z-index: 4;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Citation Styles */
         .citation-ref {
             display: inline-block;
             background-color: var(--bg-color);
@@ -146,15 +282,18 @@
             padding-top: 1rem;
             border-top: 1px solid rgba(0,0,0,0.1);
             font-size: 0.9em;
+            display: none;
         }
-        
+
+        .sources-container.show {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
         .sources-title {
             font-weight: bold;
             margin-bottom: 0.5rem;
             color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .sources-grid {
@@ -208,7 +347,89 @@
             font-style: italic;
         }
 
-        /* Message Actions */
+        .sources-toggle {
+            background: none;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .sources-toggle:hover {
+            background-color: rgba(139, 69, 19, 0.1);
+        }
+
+        /* Loading Animation */
+        .loading-container {
+            display: none;
+            padding: 1rem;
+            align-self: flex-start;
+        }
+        
+        .generating-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot-flashing {
+            position: relative;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite linear alternate;
+            animation-delay: 0.5s;
+            flex-shrink: 0;
+        }
+
+        .dot-flashing::before, .dot-flashing::after {
+            content: "";
+            display: inline-block;
+            position: absolute;
+            top: 0;
+        }
+
+        .dot-flashing::before {
+            left: -15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite alternate;
+            animation-delay: 0s;
+        }
+
+        .dot-flashing::after {
+            left: 15px;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: var(--primary-color);
+            animation: dot-flashing 1s infinite alternate;
+            animation-delay: 1s;
+        }
+
+        @keyframes dot-flashing {
+            0% { background-color: var(--primary-color); }
+            50%, 100% { background-color: rgba(139, 69, 19, 0.2); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .message-actions {
             position: absolute;
             bottom: 4px;
@@ -224,7 +445,7 @@
         .retry-btn {
             background: rgba(255,255,255,0.3);
             border: none;
-            border-radius: 50%; /* Circle */
+            border-radius: 50%;
             width: 20px;
             height: 20px;
             padding: 0;
@@ -245,97 +466,10 @@
             height: 10px;
         }
 
-        /* Loading Animation */
-        .loading-container {
-            display: none;
-            padding: 1rem;
-            align-self: flex-start;
-        }
-
-        .dot-flashing {
-            position: relative;
-            width: 10px;
-            height: 10px;
-            border-radius: 5px;
-            background-color: var(--primary-color);
-            color: var(--primary-color);
-            animation: dot-flashing 1s infinite linear alternate;
-            animation-delay: 0.5s;
-        }
-        .dot-flashing::before, .dot-flashing::after {
-            content: "";
-            display: inline-block;
-            position: absolute;
-            top: 0;
-        }
-        .dot-flashing::before {
-            left: -15px;
-            width: 10px;
-            height: 10px;
-            border-radius: 5px;
-            background-color: var(--primary-color);
-            color: var(--primary-color);
-            animation: dot-flashing 1s infinite alternate;
-            animation-delay: 0s;
-        }
-        .dot-flashing::after {
-            left: 15px;
-            width: 10px;
-            height: 10px;
-            border-radius: 5px;
-            background-color: var(--primary-color);
-            color: var(--primary-color);
-            animation: dot-flashing 1s infinite alternate;
-            animation-delay: 1s;
-        }
-
-        @keyframes dot-flashing {
-            0% { background-color: var(--primary-color); }
-            50%, 100% { background-color: rgba(139, 69, 19, 0.2); }
-        }
-
-        /* Sources Toggle */
-        .sources-toggle {
-            background: none;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            transition: all 0.2s;
-        }
-        
-        .sources-toggle:hover {
-            background-color: rgba(139, 69, 19, 0.1);
-        }
-
-        .sources-container {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(0,0,0,0.1);
-            font-size: 0.9em;
-            display: none; /* Hidden by default */
-        }
-
-        .sources-container.show {
-            display: block;
-            animation: fadeIn 0.3s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Markdown Content Styles */
         .markdown-content p {
             margin-top: 0;
         }
+
         .markdown-content ul, .markdown-content ol {
             padding-left: 1.5rem;
         }
@@ -348,7 +482,6 @@
 </header>
 
 <div id="chat-container">
-    <!-- Messages will appear here -->
     <div class="message ai-message">
         Tashi Delek! I am your Buddhist studies assistant. How can I help you today?
     </div>
@@ -364,7 +497,7 @@
 </div>
 
 <script>
-    const API_URL = 'http://localhost:8001/api/chat';
+    const API_URL = 'http://localhost:8001/api/chat/stream';
     const chatContainer = document.getElementById('chat-container');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
@@ -387,40 +520,108 @@
         conversationHistory.push({ role: "user", content: text });
 
         try {
-            // Ensure loading is visible and at the bottom
-            chatContainer.appendChild(loadingIndicator); // Move to bottom
+            chatContainer.appendChild(loadingIndicator);
             loadingIndicator.style.display = 'block';
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
+            // Create container for search results and answer
+            const responseContainer = document.createElement('div');
+            responseContainer.style.width = '100%';
+            responseContainer.style.display = 'flex';
+            responseContainer.style.flexDirection = 'column';
+            responseContainer.style.gap = '1rem';
+            responseContainer.style.alignItems = 'flex-start';
+            chatContainer.appendChild(responseContainer);
+
+            let searchResults = [];
+            let answer = '';
+
+            // SSE Connection
+            const eventSource = new EventSource(API_URL + '?' + new URLSearchParams({
+                messages: JSON.stringify(conversationHistory)
+            }));
+
+            // Alternative: Use fetch with ReadableStream for POST
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     messages: conversationHistory
                 })
             });
 
-            if (!response.ok) throw new Error('Network response was not ok');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
 
-            const data = await response.json();
-            
-            // Process Response
-            const aiResponse = data.response;
-            const sources = data.retrieved_items || [];
+            let searchResultsContainer = null;
 
-            // Update History
-            conversationHistory.push({ role: "assistant", content: aiResponse });
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            // Render AI Message with processed citations
-            addMessage(aiResponse, 'ai', sources);
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = JSON.parse(line.substring(6));
+
+                        if (data.type === 'search_results') {
+                            searchResults = searchResults.concat(data.data);
+                            
+                            // Hide loading indicator as soon as search results arrive
+                            loadingIndicator.style.display = 'none';
+                            
+                            // Create or update stacked search results
+                            if (!searchResultsContainer) {
+                                searchResultsContainer = createStackedSearchResults(searchResults);
+                                responseContainer.appendChild(searchResultsContainer);
+                                
+                                // Add "Generating answer..." indicator
+                                const generatingDiv = document.createElement('div');
+                                generatingDiv.className = 'message ai-message';
+                                generatingDiv.id = 'generating-indicator';
+                                generatingDiv.style.fontSize = '0.9rem';
+                                generatingDiv.style.fontStyle = 'italic';
+                                generatingDiv.style.opacity = '0.7';
+                                generatingDiv.style.display = 'flex';
+                                generatingDiv.style.alignItems = 'center';
+                                generatingDiv.style.gap = '8px';
+                                generatingDiv.innerHTML = '<div class="dot-flashing"></div><span style="margin-left: 20px;">Generating answer...</span>';
+                                responseContainer.appendChild(generatingDiv);
+                            } else {
+                                updateStackedSearchResults(searchResultsContainer, searchResults);
+                            }
+                            
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        } else if (data.type === 'answer') {
+                            answer = data.data;
+                            
+                            // Remove generating indicator
+                            const generatingIndicator = document.getElementById('generating-indicator');
+                            if (generatingIndicator) {
+                                generatingIndicator.remove();
+                            }
+                            
+                            // Add answer message
+                            const answerDiv = createAnswerMessage(answer, searchResults);
+                            responseContainer.appendChild(answerDiv);
+                            
+                            conversationHistory.push({ role: "assistant", content: answer });
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        } else if (data.type === 'done') {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    }
+                }
+            }
 
         } catch (error) {
             console.error('Error:', error);
             addMessage("I apologize, but I encountered an error connecting to the wisdom server.", 'ai');
         } finally {
-            // Enable UI
             userInput.disabled = false;
             sendBtn.disabled = false;
             loadingIndicator.style.display = 'none';
@@ -428,115 +629,219 @@
         }
     }
 
-    function addMessage(content, role, sources = []) {
+    function createStackedSearchResults(results) {
+        const container = document.createElement('div');
+        container.className = 'search-results-container';
+        
+        const row = document.createElement('div');
+        row.className = 'search-results-row';
+        
+        // Show 2 cards normally, rest in a stack to fit nicely in chat
+        const visibleCards = Math.min(3, results.length);
+        const remainingCount = results.length - visibleCards;
+        
+        // Add individual cards
+        for (let i = 0; i < visibleCards; i++) {
+            const card = createSearchResultCard(results[i], i + 1);
+            row.appendChild(card);
+        }
+        
+        // Add stacked cards for remaining results
+        if (remainingCount > 0) {
+            const stackContainer = document.createElement('div');
+            stackContainer.className = 'search-stack-container';
+            
+            // Show up to 4 stacked cards
+            const stackCount = Math.min(4, remainingCount + 1);
+            for (let i = 0; i < stackCount; i++) {
+                const resultIndex = visibleCards + i;
+                if (resultIndex >= results.length) break;
+                
+                const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
+                card.classList.add('stacked');
+                
+                if (i === 0) {
+                    card.classList.add('stack-top');
+                } else {
+                    card.classList.add(`stack-${i}`);
+                }
+                
+                stackContainer.appendChild(card);
+            }
+            
+            // Add count badge if more than shown
+            if (remainingCount > 0) {
+                const countBadge = document.createElement('div');
+                countBadge.className = 'stack-count';
+                countBadge.textContent = `+${remainingCount}`;
+                countBadge.onclick = () => showAllSources(results);
+                countBadge.style.cursor = 'pointer';
+                stackContainer.appendChild(countBadge);
+            }
+            
+            row.appendChild(stackContainer);
+        }
+        
+        container.appendChild(row);
+        return container;
+    }
+
+    function createSearchResultCard(result, number) {
+        const card = document.createElement('div');
+        card.className = 'search-result-card';
+        card.innerHTML = `
+            <div class="search-result-header">
+                <div class="search-result-number">${number}</div>
+                <div class="search-result-title">${result.title || 'Unknown'}</div>
+            </div>
+            <div class="search-result-snippet">${result.text || ''}</div>
+        `;
+        return card;
+    }
+
+    function updateStackedSearchResults(container, results) {
+        // Remove old row and create new one
+        const oldRow = container.querySelector('.search-results-row');
+        if (oldRow) oldRow.remove();
+        
+        const row = document.createElement('div');
+        row.className = 'search-results-row';
+        
+        const visibleCards = Math.min(2, results.length);
+        const remainingCount = results.length - visibleCards;
+        
+        for (let i = 0; i < visibleCards; i++) {
+            const card = createSearchResultCard(results[i], i + 1);
+            row.appendChild(card);
+        }
+        
+        if (remainingCount > 0) {
+            const stackContainer = document.createElement('div');
+            stackContainer.className = 'search-stack-container';
+            
+            const stackCount = Math.min(4, remainingCount + 1);
+            for (let i = 0; i < stackCount; i++) {
+                const resultIndex = visibleCards + i;
+                if (resultIndex >= results.length) break;
+                
+                const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
+                card.classList.add('stacked');
+                
+                if (i === 0) {
+                    card.classList.add('stack-top');
+                } else {
+                    card.classList.add(`stack-${i}`);
+                }
+                
+                stackContainer.appendChild(card);
+            }
+            
+            if (remainingCount > 0) {
+                const countBadge = document.createElement('div');
+                countBadge.className = 'stack-count';
+                countBadge.textContent = `+${remainingCount}`;
+                countBadge.onclick = () => showAllSources(results);
+                countBadge.style.cursor = 'pointer';
+                stackContainer.appendChild(countBadge);
+            }
+            
+            row.appendChild(stackContainer);
+        }
+        
+        container.appendChild(row);
+    }
+
+    function showAllSources(results) {
+        alert(`Showing all ${results.length} sources:\n\n` + results.map((r, i) => `${i+1}. ${r.title}`).join('\n'));
+        // TODO: Implement modal or expanded view
+    }
+
+    function createAnswerMessage(content, sources) {
+        const div = document.createElement('div');
+        div.className = 'message ai-message';
+        div.style.maxWidth = '100%';
+
+        // Process citations
+        let processedContent = content;
+        let usedSources = [];
+        let citationCount = 0;
+        const idToNumber = {};
+
+        const getNumberForId = (id) => {
+            id = id.trim();
+            if (!id) return null;
+            if (idToNumber[id]) return idToNumber[id];
+
+            const sourceDetail = sources.find(s => s.id === id);
+            if (sourceDetail) {
+                citationCount++;
+                idToNumber[id] = citationCount;
+                usedSources.push({ number: citationCount, ...sourceDetail });
+                return citationCount;
+            }
+            return null;
+        };
+
+        const citationRegex = /\[([a-zA-Z0-9\-_,\s]+)\]/g;
+        processedContent = processedContent.replace(citationRegex, (match, content) => {
+            const parts = content.split(/[,\s]+/).filter(p => p.trim().length > 0);
+            const numbers = parts.map(id => getNumberForId(id)).filter(n => n !== null);
+            
+            if (numbers.length > 0) {
+                return numbers.map(num => `<sup class="citation-ref">${num}</sup>`).join('');
+            }
+            
+            const looksLikeId = parts.some(p => p.length > 10);
+            return looksLikeId ? "" : match;
+        });
+
+        div.innerHTML = `<div class="markdown-content">${marked.parse(processedContent)}</div>`;
+
+        // Add sources toggle
+        if (usedSources.length > 0) {
+            usedSources.sort((a, b) => a.number - b.number);
+
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'sources-toggle';
+            toggleBtn.innerHTML = `<span>View ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+            
+            const sourcesDiv = document.createElement('div');
+            sourcesDiv.className = 'sources-container';
+            
+            let sourcesHtml = '<div class="sources-title">Sources</div><div class="sources-grid">';
+            usedSources.forEach(src => {
+                sourcesHtml += `
+                    <div class="source-card">
+                        <div class="source-header">
+                            <div class="source-number">${src.number}</div>
+                            <span>${src.title || "Unknown Source"}</span>
+                        </div>
+                        <div class="source-snippet">"${src.text}"</div>
+                    </div>
+                `;
+            });
+            sourcesHtml += '</div>';
+            sourcesDiv.innerHTML = sourcesHtml;
+            
+            toggleBtn.onclick = () => {
+                sourcesDiv.classList.toggle('show');
+                const isShown = sourcesDiv.classList.contains('show');
+                toggleBtn.innerHTML = `<span>${isShown ? 'Hide' : 'View'} ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isShown ? 'rotate(180deg)' : 'rotate(0deg)'}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+            };
+
+            div.appendChild(toggleBtn);
+            div.appendChild(sourcesDiv);
+        }
+
+        return div;
+    }
+
+    function addMessage(content, role) {
         const div = document.createElement('div');
         div.className = `message ${role}-message`;
+        div.textContent = content;
 
-        if (role === 'ai') {
-            // 1. Process Citations: Replace [ID] or [ID, ID] with [n] and build source map
-            let processedContent = content;
-            let usedSources = [];
-            let citationCount = 0;
-            
-            // Map ID -> Number
-            const idToNumber = {};
-
-            // Function to get or assign number for an ID
-            const getNumberForId = (id) => {
-                // Strip whitespace
-                id = id.trim();
-                if (!id) return null;
-
-                if (idToNumber[id]) return idToNumber[id];
-
-                const sourceDetail = sources.find(s => s.id === id);
-                if (sourceDetail) {
-                    citationCount++;
-                    idToNumber[id] = citationCount;
-                    usedSources.push({
-                        number: citationCount,
-                        ...sourceDetail
-                    });
-                    return citationCount;
-                }
-                return null;
-            };
-            
-            // Regex to find brackets containing potential IDs (alphanumeric, dashes, underscores, commas, spaces)
-            // We use a broad match then validate contents
-            const citationRegex = /\[([a-zA-Z0-9\-_,\s]+)\]/g;
-            
-            // Replace in text
-            processedContent = processedContent.replace(citationRegex, (match, content) => {
-                // Split by comma or space
-                const parts = content.split(/[,\s]+/).filter(p => p.trim().length > 0);
-                
-                const numbers = parts.map(id => getNumberForId(id)).filter(n => n !== null);
-                
-                if (numbers.length > 0) {
-                    // Create a badge for each number
-                    return numbers.map(num => `<sup class="citation-ref">${num}</sup>`).join('');
-                }
-                
-                // If no valid IDs found, check if we should hide it or leave it.
-                // If it looks like an ID list but we missed the source (e.g. truncated search results), 
-                // we might want to hide it to be clean.
-                // However, if it's regular text like [Note], we should keep it.
-                // Heuristic: If parts look like IDs (e.g. > 5 chars), hide them.
-                const looksLikeId = parts.some(p => p.length > 10); // IDs are usually long
-                if (looksLikeId) return "";
-                
-                return match; 
-            });
-
-            // Render Markdown
-            div.innerHTML = `<div class="markdown-content">${marked.parse(processedContent)}</div>`;
-
-            // Append Sources Section if any
-            if (usedSources.length > 0) {
-                // Sort by number
-                usedSources.sort((a, b) => a.number - b.number);
-
-                const toggleBtn = document.createElement('button');
-                toggleBtn.className = 'sources-toggle';
-                toggleBtn.innerHTML = `<span>View ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-                
-                const sourcesDiv = document.createElement('div');
-                sourcesDiv.className = 'sources-container';
-                
-                let sourcesHtml = '<div class="sources-title">Sources</div><div class="sources-grid">';
-                usedSources.forEach(src => {
-                    sourcesHtml += `
-                        <div class="source-card">
-                            <div class="source-header">
-                                <div class="source-number">${src.number}</div>
-                                <span>${src.title || "Unknown Source"}</span>
-                            </div>
-                            <div class="source-snippet">
-                                "${src.text}"
-                            </div>
-                        </div>
-                    `;
-                });
-                sourcesHtml += '</div>';
-                sourcesDiv.innerHTML = sourcesHtml;
-                
-                // Toggle Logic
-                toggleBtn.onclick = () => {
-                    sourcesDiv.classList.toggle('show');
-                    const isShown = sourcesDiv.classList.contains('show');
-                    toggleBtn.innerHTML = `<span>${isShown ? 'Hide' : 'View'} ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isShown ? 'rotate(180deg)' : 'rotate(0deg)'}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-                };
-
-                div.appendChild(toggleBtn);
-                div.appendChild(sourcesDiv);
-            }
-
-        } else {
-            // User Message
-            div.textContent = content;
-
-            // Add Retry Button
+        if (role === 'user') {
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'message-actions';
             actionsDiv.innerHTML = `<button class="retry-btn" title="Retry Query" onclick="retryMessage(this)">
@@ -548,11 +853,10 @@
         chatContainer.appendChild(div);
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-    
+
     function retryMessage(btn) {
         const messageDiv = btn.closest('.message');
         let text = "";
-        // Get text content excluding the button
         for (let node of messageDiv.childNodes) {
             if (node.nodeType === Node.TEXT_NODE) {
                 text += node.textContent;
@@ -561,8 +865,8 @@
         text = text.trim();
         
         if (text) {
-             userInput.value = text;
-             sendMessage();
+            userInput.value = text;
+            sendMessage();
         }
     }
 </script>
