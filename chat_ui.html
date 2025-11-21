@@ -536,86 +536,133 @@
             let searchResults = [];
             let answer = '';
 
-            // SSE Connection
-            const eventSource = new EventSource(API_URL + '?' + new URLSearchParams({
-                messages: JSON.stringify(conversationHistory)
-            }));
+            try {
+                // Use fetch with ReadableStream for POST (SSE streaming)
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: conversationHistory
+                    }),
+                    // Don't timeout immediately - allow slow streaming
+                    signal: null
+                });
 
-            // Alternative: Use fetch with ReadableStream for POST
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messages: conversationHistory
-                })
-            });
+                // Check if response is ok, but don't fail immediately
+                if (!response.ok) {
+                    // If it's a server error, wait a bit and show error
+                    if (response.status >= 500) {
+                        throw new Error(`Server error: ${response.status}. Please try again.`);
+                    } else {
+                        throw new Error(`Request failed: ${response.status}`);
+                    }
+                }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+                // Check if response body exists
+                if (!response.body) {
+                    throw new Error('No response body received');
+                }
 
-            let searchResultsContainer = null;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+                let searchResultsContainer = null;
+                let hasReceivedData = false;
+                let streamTimeout = setTimeout(() => {
+                    if (!hasReceivedData) {
+                        // If no data after 30 seconds, show a message but don't error
+                        const timeoutMsg = document.createElement('div');
+                        timeoutMsg.className = 'message ai-message';
+                        timeoutMsg.textContent = 'The response is taking longer than expected. Please wait...';
+                        responseContainer.appendChild(timeoutMsg);
+                    }
+                }, 30000); // 30 second timeout
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        clearTimeout(streamTimeout);
+                        break;
+                    }
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.substring(6));
+                    hasReceivedData = true;
+                    clearTimeout(streamTimeout);
 
-                        if (data.type === 'search_results') {
-                            searchResults = searchResults.concat(data.data);
-                            
-                            // Hide loading indicator as soon as search results arrive
-                            loadingIndicator.style.display = 'none';
-                            
-                            // Create or update stacked search results
-                            if (!searchResultsContainer) {
-                                searchResultsContainer = createStackedSearchResults(searchResults);
-                                responseContainer.appendChild(searchResultsContainer);
-                                
-                                // Add "Generating answer..." indicator
-                                const generatingDiv = document.createElement('div');
-                                generatingDiv.className = 'message ai-message';
-                                generatingDiv.id = 'generating-indicator';
-                                generatingDiv.style.fontSize = '0.9rem';
-                                generatingDiv.style.fontStyle = 'italic';
-                                generatingDiv.style.opacity = '0.7';
-                                generatingDiv.style.display = 'flex';
-                                generatingDiv.style.alignItems = 'center';
-                                generatingDiv.style.gap = '8px';
-                                generatingDiv.innerHTML = '<div class="dot-flashing"></div><span style="margin-left: 20px;">Generating answer...</span>';
-                                responseContainer.appendChild(generatingDiv);
-                            } else {
-                                updateStackedSearchResults(searchResultsContainer, searchResults);
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+
+                                if (data.type === 'search_results') {
+                                    searchResults = searchResults.concat(data.data);
+                                    
+                                    // Hide loading indicator as soon as search results arrive
+                                    loadingIndicator.style.display = 'none';
+                                    
+                                    // Create or update stacked search results
+                                    if (!searchResultsContainer) {
+                                        searchResultsContainer = createStackedSearchResults(searchResults);
+                                        responseContainer.appendChild(searchResultsContainer);
+                                        
+                                        // Add "Generating answer..." indicator
+                                        const generatingDiv = document.createElement('div');
+                                        generatingDiv.className = 'message ai-message';
+                                        generatingDiv.id = 'generating-indicator';
+                                        generatingDiv.style.fontSize = '0.9rem';
+                                        generatingDiv.style.fontStyle = 'italic';
+                                        generatingDiv.style.opacity = '0.7';
+                                        generatingDiv.style.display = 'flex';
+                                        generatingDiv.style.alignItems = 'center';
+                                        generatingDiv.style.gap = '8px';
+                                        generatingDiv.innerHTML = '<div class="dot-flashing"></div><span style="margin-left: 20px;">Generating answer...</span>';
+                                        responseContainer.appendChild(generatingDiv);
+                                    } else {
+                                        updateStackedSearchResults(searchResultsContainer, searchResults);
+                                    }
+                                    
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.type === 'answer') {
+                                    answer = data.data;
+                                    
+                                    // Remove generating indicator
+                                    const generatingIndicator = document.getElementById('generating-indicator');
+                                    if (generatingIndicator) {
+                                        generatingIndicator.remove();
+                                    }
+                                    
+                                    // Add answer message
+                                    const answerDiv = createAnswerMessage(answer, searchResults);
+                                    responseContainer.appendChild(answerDiv);
+                                    
+                                    conversationHistory.push({ role: "assistant", content: answer });
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.type === 'done') {
+                                    loadingIndicator.style.display = 'none';
+                                }
+                            } catch (parseError) {
+                                // Skip malformed JSON lines, don't break the stream
+                                console.warn('Failed to parse SSE data:', parseError);
                             }
-                            
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                        } else if (data.type === 'answer') {
-                            answer = data.data;
-                            
-                            // Remove generating indicator
-                            const generatingIndicator = document.getElementById('generating-indicator');
-                            if (generatingIndicator) {
-                                generatingIndicator.remove();
-                            }
-                            
-                            // Add answer message
-                            const answerDiv = createAnswerMessage(answer, searchResults);
-                            responseContainer.appendChild(answerDiv);
-                            
-                            conversationHistory.push({ role: "assistant", content: answer });
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                        } else if (data.type === 'done') {
-                            loadingIndicator.style.display = 'none';
                         }
                     }
                 }
+            } catch (error) {
+                // Only show error if it's a real error, not just slow streaming
+                console.error('Stream error:', error);
+                loadingIndicator.style.display = 'none';
+                
+                // Remove generating indicator if it exists
+                const generatingIndicator = document.getElementById('generating-indicator');
+                if (generatingIndicator) {
+                    generatingIndicator.remove();
+                }
+                
+                addMessage("I apologize, but I encountered an error connecting to the wisdom server. Please try again.", 'ai');
             }
 
         } catch (error) {
