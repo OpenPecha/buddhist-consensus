@@ -116,6 +116,34 @@
             cursor: not-allowed;
         }
 
+        /* Expanded Queries Styles */
+        .queries-container {
+            width: 100%;
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .query-badge {
+            background-color: rgba(139, 69, 19, 0.1);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .query-badge svg {
+            width: 12px;
+            height: 12px;
+            opacity: 0.7;
+        }
+
         /* Horizontal Search Results with Stack at End */
         .search-results-container {
             position: relative;
@@ -372,12 +400,6 @@
             padding: 1rem;
             align-self: flex-start;
         }
-        
-        .generating-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
 
         .dot-flashing {
             position: relative;
@@ -388,7 +410,6 @@
             color: var(--primary-color);
             animation: dot-flashing 1s infinite linear alternate;
             animation-delay: 0.5s;
-            flex-shrink: 0;
         }
 
         .dot-flashing::before, .dot-flashing::after {
@@ -497,7 +518,7 @@
 </div>
 
 <script>
-    const API_URL = 'https://buddhist-consensus.onrender.com/api/chat/stream';
+    const API_URL = 'http://localhost:8001/api/chat/stream';
     const chatContainer = document.getElementById('chat-container');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
@@ -534,6 +555,7 @@
             chatContainer.appendChild(responseContainer);
 
             let searchResults = [];
+            let queries = null;
             let answer = '';
 
             // Use fetch with ReadableStream for POST (server streams SSE-format lines in body)
@@ -551,6 +573,7 @@
             const decoder = new TextDecoder();
 
             let searchResultsContainer = null;
+            let queriesContainer = null;
             let buffer = '';
 
             while (true) {
@@ -592,13 +615,21 @@
 
             function handleSseEvent(data) {
                 if (!data || !data.type) return;
+                
                 if (data.type === 'search_results') {
                     searchResults = searchResults.concat(data.data || []);
+                    queries = data.queries || null;
                     
                     // Hide loading indicator as soon as search results arrive
                     loadingIndicator.style.display = 'none';
                     
-                    // Create or update stacked search results
+                    // 1. Show Queries first (if available)
+                    if (queries && !queriesContainer) {
+                        queriesContainer = createExpandedQueriesView(queries);
+                        responseContainer.appendChild(queriesContainer);
+                    }
+                    
+                    // 2. Create or update stacked search results
                     if (!searchResultsContainer) {
                         searchResultsContainer = createStackedSearchResults(searchResults);
                         responseContainer.appendChild(searchResultsContainer);
@@ -651,6 +682,28 @@
         }
     }
 
+    function createExpandedQueriesView(queries) {
+        const container = document.createElement('div');
+        container.className = 'queries-container';
+        
+        // Extract unique query values
+        const uniqueQueries = new Set(Object.values(queries));
+        
+        uniqueQueries.forEach(q => {
+            if (q && q.trim()) {
+                const badge = document.createElement('div');
+                badge.className = 'query-badge';
+                badge.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <span>${q}</span>
+                `;
+                container.appendChild(badge);
+            }
+        });
+        
+        return container;
+    }
+
     function createStackedSearchResults(results) {
         const container = document.createElement('div');
         container.className = 'search-results-container';
@@ -673,8 +726,8 @@
             const stackContainer = document.createElement('div');
             stackContainer.className = 'search-stack-container';
             
-            // Show up to 4 stacked cards
-            const stackCount = Math.min(4, remainingCount + 1);
+            // Show up to 3 stacked cards
+            const stackCount = Math.min(3, remainingCount);
             for (let i = 0; i < stackCount; i++) {
                 const resultIndex = visibleCards + i;
                 if (resultIndex >= results.length) break;
@@ -691,15 +744,13 @@
                 stackContainer.appendChild(card);
             }
             
-            // Add count badge if more than shown
-            if (remainingCount > 0) {
-                const countBadge = document.createElement('div');
-                countBadge.className = 'stack-count';
-                countBadge.textContent = `+${remainingCount}`;
-                countBadge.onclick = () => showAllSources(results);
-                countBadge.style.cursor = 'pointer';
-                stackContainer.appendChild(countBadge);
-            }
+            // Add count badge showing total remaining
+            const countBadge = document.createElement('div');
+            countBadge.className = 'stack-count';
+            countBadge.textContent = `+${remainingCount}`;
+            countBadge.onclick = () => showAllSources(results);
+            countBadge.style.cursor = 'pointer';
+            stackContainer.appendChild(countBadge);
             
             row.appendChild(stackContainer);
         }
@@ -729,7 +780,7 @@
         const row = document.createElement('div');
         row.className = 'search-results-row';
         
-        const visibleCards = Math.min(2, results.length);
+        const visibleCards = Math.min(3, results.length);
         const remainingCount = results.length - visibleCards;
         
         for (let i = 0; i < visibleCards; i++) {
@@ -741,7 +792,7 @@
             const stackContainer = document.createElement('div');
             stackContainer.className = 'search-stack-container';
             
-            const stackCount = Math.min(4, remainingCount + 1);
+            const stackCount = Math.min(3, remainingCount);
             for (let i = 0; i < stackCount; i++) {
                 const resultIndex = visibleCards + i;
                 if (resultIndex >= results.length) break;
@@ -758,14 +809,12 @@
                 stackContainer.appendChild(card);
             }
             
-            if (remainingCount > 0) {
-                const countBadge = document.createElement('div');
-                countBadge.className = 'stack-count';
-                countBadge.textContent = `+${remainingCount}`;
-                countBadge.onclick = () => showAllSources(results);
-                countBadge.style.cursor = 'pointer';
-                stackContainer.appendChild(countBadge);
-            }
+            const countBadge = document.createElement('div');
+            countBadge.className = 'stack-count';
+            countBadge.textContent = `+${remainingCount}`;
+            countBadge.onclick = () => showAllSources(results);
+            countBadge.style.cursor = 'pointer';
+            stackContainer.appendChild(countBadge);
             
             row.appendChild(stackContainer);
         }
@@ -895,3 +944,5 @@
 
 </body>
 </html>
+
+
