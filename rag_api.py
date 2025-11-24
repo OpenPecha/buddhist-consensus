@@ -81,7 +81,7 @@ def generate_expanded_queries(query: str) -> Dict[str, str]:
     """
     try:
         response = genai_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config={'response_mime_type': 'application/json'}
         )
@@ -222,7 +222,7 @@ def generate_answer(state: State):
     2. You MUST answer in the SAME language as the user's query.
     3. If the user explicitly requests a specific language, honor that request.
     4. Do NOT switch languages unless asked. If the query is in Tibetan, the answer MUST be in Tibetan. If the query is in English, the answer MUST be in English.
-
+ 
     CRITICAL CITATION RULES:
     1. Every single sentence or claim you make based on the text must be immediately followed by a citation.
     2. Use the EXACT format [ID] for citations. Do NOT use the title in the citation bracket, ONLY the ID.
