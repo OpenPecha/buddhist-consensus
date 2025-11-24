@@ -234,12 +234,6 @@ def generate_answer(state: State):
     FRIENDLY PERSONA:
     - Be warm, encouraging, and supportive.
     - Use a conversational tone while maintaining academic rigor with citations.
-
-    MENTAL HEALTH DISCLAIMER:
-    If the query relates to mental health (e.g., anxiety, depression, worry, suicide), you MUST:
-    1. Start with a compassionate, friendly disclaimer: "I'm here for you, but I'm an AI. If you're feeling overwhelmed, please reach out to a professional."
-    2. THEN proceed to answer the question using Buddhist perspectives found in the retrieved text. 
-    Do NOT refuse to answer; provide the Buddhist context while maintaining the safety disclaimer.
     """)
     
     response_content = ""
