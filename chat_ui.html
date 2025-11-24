@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,7 +33,7 @@
             color: #fff;
             padding: 1rem;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
@@ -166,7 +167,7 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 0.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
             transition: all 0.2s ease;
             cursor: pointer;
             /* Fixed dimensions - smaller to fit 3 boxes + stack */
@@ -179,7 +180,7 @@
         }
 
         .search-result-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transform: translateY(-2px);
         }
 
@@ -278,7 +279,7 @@
             font-size: 0.75rem;
             font-weight: bold;
             z-index: 4;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         /* Citation Styles */
@@ -308,7 +309,7 @@
         .sources-container {
             margin-top: 1rem;
             padding-top: 1rem;
-            border-top: 1px solid rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
             font-size: 0.9em;
             display: none;
         }
@@ -331,8 +332,8 @@
         }
 
         .source-card {
-            background: rgba(255,255,255,0.6);
-            border: 1px solid rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 8px;
             padding: 0.75rem;
             font-size: 0.85rem;
@@ -340,8 +341,8 @@
         }
 
         .source-card:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            background: rgba(255,255,255,0.8);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.8);
         }
 
         .source-header {
@@ -412,7 +413,8 @@
             animation-delay: 0.5s;
         }
 
-        .dot-flashing::before, .dot-flashing::after {
+        .dot-flashing::before,
+        .dot-flashing::after {
             content: "";
             display: inline-block;
             position: absolute;
@@ -442,13 +444,26 @@
         }
 
         @keyframes dot-flashing {
-            0% { background-color: var(--primary-color); }
-            50%, 100% { background-color: rgba(139, 69, 19, 0.2); }
+            0% {
+                background-color: var(--primary-color);
+            }
+
+            50%,
+            100% {
+                background-color: rgba(139, 69, 19, 0.2);
+            }
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message-actions {
@@ -464,7 +479,7 @@
         }
 
         .retry-btn {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
             border: none;
             border-radius: 50%;
             width: 20px;
@@ -478,7 +493,7 @@
         }
 
         .retry-btn:hover {
-            background-color: rgba(255,255,255,0.5);
+            background-color: rgba(255, 255, 255, 0.5);
             transform: scale(1.1);
         }
 
@@ -491,397 +506,423 @@
             margin-top: 0;
         }
 
-        .markdown-content ul, .markdown-content ol {
+        .markdown-content ul,
+        .markdown-content ol {
             padding-left: 1.5rem;
         }
     </style>
 </head>
+
 <body>
 
-<header>
-    <h1>Buddhist Consensus</h1>
-</header>
+    <header>
+        <h1>Buddhist Consensus</h1>
+    </header>
 
-<div id="chat-container">
-    <div class="message ai-message">
-        Tashi Delek! I am your Buddhist studies assistant. How can I help you today?
+    <div id="chat-container">
+        <div class="message ai-message">
+            Tashi Delek! I am your Buddhist studies assistant. How can I help you today?
+        </div>
+
+        <div class="loading-container" id="loading-indicator">
+            <div class="dot-flashing"></div>
+        </div>
     </div>
-    
-    <div class="loading-container" id="loading-indicator">
-        <div class="dot-flashing"></div>
+
+    <div class="input-area">
+        <textarea id="user-input" placeholder="Ask a question about Buddhist texts..."
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
     </div>
-</div>
 
-<div class="input-area">
-    <textarea id="user-input" placeholder="Ask a question about Buddhist texts..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
-    <button id="send-btn" onclick="sendMessage()">Send</button>
-</div>
+    <script>
+        const API_URL = 'https://buddhist-consensus.onrender.com/api/chat/stream';
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
 
-<script>
-    const API_URL = 'https://buddhist-consensus.onrender.com/api/chat/stream';
-    const chatContainer = document.getElementById('chat-container');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const loadingIndicator = document.getElementById('loading-indicator');
+        let conversationHistory = [];
 
-    let conversationHistory = [];
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
 
-    async function sendMessage() {
-        const text = userInput.value.trim();
-        if (!text) return;
-
-        // Disable UI
-        userInput.value = '';
-        userInput.disabled = true;
-        sendBtn.disabled = true;
-        loadingIndicator.style.display = 'block';
-
-        // Add User Message
-        addMessage(text, 'user');
-        conversationHistory.push({ role: "user", content: text });
-
-        try {
-            chatContainer.appendChild(loadingIndicator);
+            // Disable UI
+            userInput.value = '';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
             loadingIndicator.style.display = 'block';
-            chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Create container for search results and answer
-            const responseContainer = document.createElement('div');
-            responseContainer.style.width = '100%';
-            responseContainer.style.display = 'flex';
-            responseContainer.style.flexDirection = 'column';
-            responseContainer.style.gap = '1rem';
-            responseContainer.style.alignItems = 'flex-start';
-            chatContainer.appendChild(responseContainer);
+            // Add User Message
+            addMessage(text, 'user');
+            conversationHistory.push({ role: "user", content: text });
 
-            let searchResults = [];
-            let queries = null;
-            let answer = '';
+            try {
+                chatContainer.appendChild(loadingIndicator);
+                loadingIndicator.style.display = 'block';
+                chatContainer.scrollTop = chatContainer.scrollHeight;
 
-            // Use fetch with ReadableStream for POST (server streams SSE-format lines in body)
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messages: conversationHistory
-                })
-            });
+                // Create container for search results and answer
+                const responseContainer = document.createElement('div');
+                responseContainer.style.width = '100%';
+                responseContainer.style.display = 'flex';
+                responseContainer.style.flexDirection = 'column';
+                responseContainer.style.gap = '1rem';
+                responseContainer.style.alignItems = 'flex-start';
+                chatContainer.appendChild(responseContainer);
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+                let searchResults = [];
+                let queries = null;
+                let answer = '';
 
-            let searchResultsContainer = null;
-            let queriesContainer = null;
-            let buffer = '';
+                // Use fetch with ReadableStream for POST (server streams SSE-format lines in body)
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: conversationHistory
+                    })
+                });
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    // Process any trailing buffered line
-                    if (buffer.trim().length > 0) {
-                        try {
-                            const maybe = buffer.trim();
-                            if (maybe.startsWith('data:')) {
-                                const data = JSON.parse(maybe.substring(5).trimStart());
-                                handleSseEvent(data);
-                            }
-                        } catch (_) {/* ignore final partial */}
-                    }
-                    break;
-                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                // Append streamed chunk to buffer; preserve partial lines
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split(/\r?\n/);
-                // Keep last partial line in buffer
-                buffer = lines.pop() ?? '';
+                let searchResultsContainer = null;
+                let queriesContainer = null;
+                let buffer = '';
 
-                for (const rawLine of lines) {
-                    const line = rawLine.trim();
-                    if (!line.startsWith('data:')) continue;
-                    const jsonStr = line.substring(5).trimStart();
-                    try {
-                        const data = JSON.parse(jsonStr);
-                        handleSseEvent(data);
-                    } catch (e) {
-                        // Incomplete JSON (split across chunks) - re-buffer it
-                        buffer = line + '\n' + buffer;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        // Process any trailing buffered line
+                        if (buffer.trim().length > 0) {
+                            try {
+                                const maybe = buffer.trim();
+                                if (maybe.startsWith('data:')) {
+                                    const data = JSON.parse(maybe.substring(5).trimStart());
+                                    handleSseEvent(data);
+                                }
+                            } catch (_) {/* ignore final partial */ }
+                        }
                         break;
                     }
-                }
-            }
 
-            function handleSseEvent(data) {
-                if (!data || !data.type) return;
-                
-                if (data.type === 'search_results') {
-                    searchResults = searchResults.concat(data.data || []);
-                    queries = data.queries || null;
-                    
-                    // Hide loading indicator as soon as search results arrive
-                    loadingIndicator.style.display = 'none';
-                    
-                    // 1. Show Queries first (if available)
-                    if (queries && !queriesContainer) {
-                        queriesContainer = createExpandedQueriesView(queries);
-                        responseContainer.appendChild(queriesContainer);
-                    }
-                    
-                    // 2. Create or update stacked search results
-                    if (!searchResultsContainer) {
-                        searchResultsContainer = createStackedSearchResults(searchResults);
-                        responseContainer.appendChild(searchResultsContainer);
-                        
-                        // Add "Generating answer..." indicator
-                        const generatingDiv = document.createElement('div');
-                        generatingDiv.className = 'message ai-message';
-                        generatingDiv.id = 'generating-indicator';
-                        generatingDiv.style.fontSize = '0.9rem';
-                        generatingDiv.style.fontStyle = 'italic';
-                        generatingDiv.style.opacity = '0.7';
-                        generatingDiv.style.display = 'flex';
-                        generatingDiv.style.alignItems = 'center';
-                        generatingDiv.style.gap = '8px';
-                        generatingDiv.innerHTML = '<div class="dot-flashing"></div><span style="margin-left: 20px;">Generating answer...</span>';
-                        responseContainer.appendChild(generatingDiv);
-                    } else {
-                        updateStackedSearchResults(searchResultsContainer, searchResults);
-                    }
-                    
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                } else if (data.type === 'answer') {
-                    answer = data.data || '';
-                    
-                    // Remove generating indicator
-                    const generatingIndicator = document.getElementById('generating-indicator');
-                    if (generatingIndicator) {
-                        generatingIndicator.remove();
-                    }
-                    
-                    // Add answer message
-                    const answerDiv = createAnswerMessage(answer, searchResults);
-                    responseContainer.appendChild(answerDiv);
-                    
-                    conversationHistory.push({ role: "assistant", content: answer });
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                } else if (data.type === 'done') {
-                    loadingIndicator.style.display = 'none';
-                }
-            }
+                    // Append streamed chunk to buffer; preserve partial lines
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split(/\r?\n/);
+                    // Keep last partial line in buffer
+                    buffer = lines.pop() ?? '';
 
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage("I apologize, but I encountered an error connecting to the wisdom server.", 'ai');
-        } finally {
-            userInput.disabled = false;
-            sendBtn.disabled = false;
-            loadingIndicator.style.display = 'none';
-            userInput.focus();
+                    for (const rawLine of lines) {
+                        const line = rawLine.trim();
+                        if (!line.startsWith('data:')) continue;
+                        const jsonStr = line.substring(5).trimStart();
+                        try {
+                            const data = JSON.parse(jsonStr);
+                            handleSseEvent(data);
+                        } catch (e) {
+                            // Incomplete JSON (split across chunks) - re-buffer it
+                            buffer = line + '\n' + buffer;
+                            break;
+                        }
+                    }
+                }
+
+                function handleSseEvent(data) {
+                    if (!data || !data.type) return;
+
+                    if (data.type === 'search_results') {
+                        searchResults = searchResults.concat(data.data || []);
+                        queries = data.queries || null;
+
+                        // Hide loading indicator as soon as search results arrive
+                        loadingIndicator.style.display = 'none';
+
+                        // 1. Show Queries first (if available)
+                        if (queries && !queriesContainer) {
+                            queriesContainer = createExpandedQueriesView(queries);
+                            responseContainer.appendChild(queriesContainer);
+                        }
+
+                        // 2. Create or update stacked search results
+                        if (!searchResultsContainer) {
+                            searchResultsContainer = createStackedSearchResults(searchResults);
+                            responseContainer.appendChild(searchResultsContainer);
+
+                            // Add "Generating answer..." indicator
+                            const generatingDiv = document.createElement('div');
+                            generatingDiv.className = 'message ai-message';
+                            generatingDiv.id = 'generating-indicator';
+                            generatingDiv.style.fontSize = '0.9rem';
+                            generatingDiv.style.fontStyle = 'italic';
+                            generatingDiv.style.opacity = '0.7';
+                            generatingDiv.style.display = 'flex';
+                            generatingDiv.style.alignItems = 'center';
+                            generatingDiv.style.gap = '8px';
+                            generatingDiv.innerHTML = '<div class="dot-flashing"></div><span style="margin-left: 20px;">Generating answer...</span>';
+                            responseContainer.appendChild(generatingDiv);
+                        } else {
+                            updateStackedSearchResults(searchResultsContainer, searchResults);
+                        }
+
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    } else if (data.type === 'token') {
+                        const token = data.data || '';
+                        answer += token;
+
+                        const generatingIndicator = document.getElementById('generating-indicator');
+                        if (generatingIndicator) generatingIndicator.remove();
+
+                        let answerDiv = document.getElementById('current-answer-div');
+                        if (!answerDiv) {
+                            answerDiv = document.createElement('div');
+                            answerDiv.className = 'message ai-message';
+                            answerDiv.id = 'current-answer-div';
+                            answerDiv.style.maxWidth = '100%';
+                            responseContainer.appendChild(answerDiv);
+                        }
+
+                        // Render markdown during stream
+                        answerDiv.innerHTML = `<div class="markdown-content">${marked.parse(answer)}</div>`;
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                    } else if (data.type === 'done') {
+                        loadingIndicator.style.display = 'none';
+
+                        const generatingIndicator = document.getElementById('generating-indicator');
+                        if (generatingIndicator) generatingIndicator.remove();
+
+                        // Finalize answer with citations
+                        const answerDiv = document.getElementById('current-answer-div');
+                        if (answerDiv) {
+                            const finalDiv = createAnswerMessage(answer, searchResults);
+                            responseContainer.replaceChild(finalDiv, answerDiv);
+                        } else if (answer) {
+                            const finalDiv = createAnswerMessage(answer, searchResults);
+                            responseContainer.appendChild(finalDiv);
+                        }
+
+                        if (answer) {
+                            conversationHistory.push({ role: "assistant", content: answer });
+                        }
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage("I apologize, but I encountered an error connecting to the wisdom server.", 'ai');
+            } finally {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+                userInput.focus();
+            }
         }
-    }
 
-    function createExpandedQueriesView(queries) {
-        const container = document.createElement('div');
-        container.className = 'queries-container';
-        
-        // Extract unique query values
-        const uniqueQueries = new Set(Object.values(queries));
-        
-        uniqueQueries.forEach(q => {
-            if (q && q.trim()) {
-                const badge = document.createElement('div');
-                badge.className = 'query-badge';
-                badge.innerHTML = `
+        function createExpandedQueriesView(queries) {
+            const container = document.createElement('div');
+            container.className = 'queries-container';
+
+            // Extract unique query values
+            const uniqueQueries = new Set(Object.values(queries));
+
+            uniqueQueries.forEach(q => {
+                if (q && q.trim()) {
+                    const badge = document.createElement('div');
+                    badge.className = 'query-badge';
+                    badge.innerHTML = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     <span>${q}</span>
                 `;
-                container.appendChild(badge);
-            }
-        });
-        
-        return container;
-    }
-
-    function createStackedSearchResults(results) {
-        const container = document.createElement('div');
-        container.className = 'search-results-container';
-        
-        const row = document.createElement('div');
-        row.className = 'search-results-row';
-        
-        // Show 2 cards normally, rest in a stack to fit nicely in chat
-        const visibleCards = Math.min(3, results.length);
-        const remainingCount = results.length - visibleCards;
-        
-        // Add individual cards
-        for (let i = 0; i < visibleCards; i++) {
-            const card = createSearchResultCard(results[i], i + 1);
-            row.appendChild(card);
-        }
-        
-        // Add stacked cards for remaining results
-        if (remainingCount > 0) {
-            const stackContainer = document.createElement('div');
-            stackContainer.className = 'search-stack-container';
-            
-            // Show up to 3 stacked cards
-            const stackCount = Math.min(3, remainingCount);
-            for (let i = 0; i < stackCount; i++) {
-                const resultIndex = visibleCards + i;
-                if (resultIndex >= results.length) break;
-                
-                const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
-                card.classList.add('stacked');
-                
-                if (i === 0) {
-                    card.classList.add('stack-top');
-                } else {
-                    card.classList.add(`stack-${i}`);
+                    container.appendChild(badge);
                 }
-                
-                stackContainer.appendChild(card);
-            }
-            
-            // Add count badge showing total remaining
-            const countBadge = document.createElement('div');
-            countBadge.className = 'stack-count';
-            countBadge.textContent = `+${remainingCount}`;
-            countBadge.onclick = () => showAllSources(results);
-            countBadge.style.cursor = 'pointer';
-            stackContainer.appendChild(countBadge);
-            
-            row.appendChild(stackContainer);
-        }
-        
-        container.appendChild(row);
-        return container;
-    }
+            });
 
-    function createSearchResultCard(result, number) {
-        const card = document.createElement('div');
-        card.className = 'search-result-card';
-        card.innerHTML = `
+            return container;
+        }
+
+        function createStackedSearchResults(results) {
+            const container = document.createElement('div');
+            container.className = 'search-results-container';
+
+            const row = document.createElement('div');
+            row.className = 'search-results-row';
+
+            // Show 2 cards normally, rest in a stack to fit nicely in chat
+            const visibleCards = Math.min(3, results.length);
+            const remainingCount = results.length - visibleCards;
+
+            // Add individual cards
+            for (let i = 0; i < visibleCards; i++) {
+                const card = createSearchResultCard(results[i], i + 1);
+                row.appendChild(card);
+            }
+
+            // Add stacked cards for remaining results
+            if (remainingCount > 0) {
+                const stackContainer = document.createElement('div');
+                stackContainer.className = 'search-stack-container';
+
+                // Show up to 3 stacked cards
+                const stackCount = Math.min(3, remainingCount);
+                for (let i = 0; i < stackCount; i++) {
+                    const resultIndex = visibleCards + i;
+                    if (resultIndex >= results.length) break;
+
+                    const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
+                    card.classList.add('stacked');
+
+                    if (i === 0) {
+                        card.classList.add('stack-top');
+                    } else {
+                        card.classList.add(`stack-${i}`);
+                    }
+
+                    stackContainer.appendChild(card);
+                }
+
+                // Add count badge showing total remaining
+                const countBadge = document.createElement('div');
+                countBadge.className = 'stack-count';
+                countBadge.textContent = `+${remainingCount}`;
+                countBadge.onclick = () => showAllSources(results);
+                countBadge.style.cursor = 'pointer';
+                stackContainer.appendChild(countBadge);
+
+                row.appendChild(stackContainer);
+            }
+
+            container.appendChild(row);
+            return container;
+        }
+
+        function createSearchResultCard(result, number) {
+            const card = document.createElement('div');
+            card.className = 'search-result-card';
+            card.innerHTML = `
             <div class="search-result-header">
                 <div class="search-result-number">${number}</div>
                 <div class="search-result-title">${result.title || 'Unknown'}</div>
             </div>
             <div class="search-result-snippet">${result.text || ''}</div>
         `;
-        return card;
-    }
-
-    function updateStackedSearchResults(container, results) {
-        // Remove old row and create new one
-        const oldRow = container.querySelector('.search-results-row');
-        if (oldRow) oldRow.remove();
-        
-        const row = document.createElement('div');
-        row.className = 'search-results-row';
-        
-        const visibleCards = Math.min(3, results.length);
-        const remainingCount = results.length - visibleCards;
-        
-        for (let i = 0; i < visibleCards; i++) {
-            const card = createSearchResultCard(results[i], i + 1);
-            row.appendChild(card);
+            return card;
         }
-        
-        if (remainingCount > 0) {
-            const stackContainer = document.createElement('div');
-            stackContainer.className = 'search-stack-container';
-            
-            const stackCount = Math.min(3, remainingCount);
-            for (let i = 0; i < stackCount; i++) {
-                const resultIndex = visibleCards + i;
-                if (resultIndex >= results.length) break;
-                
-                const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
-                card.classList.add('stacked');
-                
-                if (i === 0) {
-                    card.classList.add('stack-top');
-                } else {
-                    card.classList.add(`stack-${i}`);
+
+        function updateStackedSearchResults(container, results) {
+            // Remove old row and create new one
+            const oldRow = container.querySelector('.search-results-row');
+            if (oldRow) oldRow.remove();
+
+            const row = document.createElement('div');
+            row.className = 'search-results-row';
+
+            const visibleCards = Math.min(3, results.length);
+            const remainingCount = results.length - visibleCards;
+
+            for (let i = 0; i < visibleCards; i++) {
+                const card = createSearchResultCard(results[i], i + 1);
+                row.appendChild(card);
+            }
+
+            if (remainingCount > 0) {
+                const stackContainer = document.createElement('div');
+                stackContainer.className = 'search-stack-container';
+
+                const stackCount = Math.min(3, remainingCount);
+                for (let i = 0; i < stackCount; i++) {
+                    const resultIndex = visibleCards + i;
+                    if (resultIndex >= results.length) break;
+
+                    const card = createSearchResultCard(results[resultIndex], resultIndex + 1);
+                    card.classList.add('stacked');
+
+                    if (i === 0) {
+                        card.classList.add('stack-top');
+                    } else {
+                        card.classList.add(`stack-${i}`);
+                    }
+
+                    stackContainer.appendChild(card);
                 }
-                
-                stackContainer.appendChild(card);
+
+                const countBadge = document.createElement('div');
+                countBadge.className = 'stack-count';
+                countBadge.textContent = `+${remainingCount}`;
+                countBadge.onclick = () => showAllSources(results);
+                countBadge.style.cursor = 'pointer';
+                stackContainer.appendChild(countBadge);
+
+                row.appendChild(stackContainer);
             }
-            
-            const countBadge = document.createElement('div');
-            countBadge.className = 'stack-count';
-            countBadge.textContent = `+${remainingCount}`;
-            countBadge.onclick = () => showAllSources(results);
-            countBadge.style.cursor = 'pointer';
-            stackContainer.appendChild(countBadge);
-            
-            row.appendChild(stackContainer);
+
+            container.appendChild(row);
         }
-        
-        container.appendChild(row);
-    }
 
-    function showAllSources(results) {
-        alert(`Showing all ${results.length} sources:\n\n` + results.map((r, i) => `${i+1}. ${r.title}`).join('\n'));
-        // TODO: Implement modal or expanded view
-    }
+        function showAllSources(results) {
+            alert(`Showing all ${results.length} sources:\n\n` + results.map((r, i) => `${i + 1}. ${r.title}`).join('\n'));
+            // TODO: Implement modal or expanded view
+        }
 
-    function createAnswerMessage(content, sources) {
-        const div = document.createElement('div');
-        div.className = 'message ai-message';
-        div.style.maxWidth = '100%';
+        function createAnswerMessage(content, sources) {
+            const div = document.createElement('div');
+            div.className = 'message ai-message';
+            div.style.maxWidth = '100%';
 
-        // Process citations
-        let processedContent = content;
-        let usedSources = [];
-        let citationCount = 0;
-        const idToNumber = {};
+            // Process citations
+            let processedContent = content;
+            let usedSources = [];
+            let citationCount = 0;
+            const idToNumber = {};
 
-        const getNumberForId = (id) => {
-            id = id.trim();
-            if (!id) return null;
-            if (idToNumber[id]) return idToNumber[id];
+            const getNumberForId = (id) => {
+                id = id.trim();
+                if (!id) return null;
+                if (idToNumber[id]) return idToNumber[id];
 
-            const sourceDetail = sources.find(s => s.id === id);
-            if (sourceDetail) {
-                citationCount++;
-                idToNumber[id] = citationCount;
-                usedSources.push({ number: citationCount, ...sourceDetail });
-                return citationCount;
-            }
-            return null;
-        };
+                const sourceDetail = sources.find(s => s.id === id);
+                if (sourceDetail) {
+                    citationCount++;
+                    idToNumber[id] = citationCount;
+                    usedSources.push({ number: citationCount, ...sourceDetail });
+                    return citationCount;
+                }
+                return null;
+            };
 
-        const citationRegex = /\[([a-zA-Z0-9\-_,\s]+)\]/g;
-        processedContent = processedContent.replace(citationRegex, (match, content) => {
-            const parts = content.split(/[,\s]+/).filter(p => p.trim().length > 0);
-            const numbers = parts.map(id => getNumberForId(id)).filter(n => n !== null);
-            
-            if (numbers.length > 0) {
-                return numbers.map(num => `<sup class="citation-ref">${num}</sup>`).join('');
-            }
-            
-            const looksLikeId = parts.some(p => p.length > 10);
-            return looksLikeId ? "" : match;
-        });
+            const citationRegex = /\[([a-zA-Z0-9\-_,\s]+)\]/g;
+            processedContent = processedContent.replace(citationRegex, (match, content) => {
+                const parts = content.split(/[,\s]+/).filter(p => p.trim().length > 0);
+                const numbers = parts.map(id => getNumberForId(id)).filter(n => n !== null);
 
-        div.innerHTML = `<div class="markdown-content">${marked.parse(processedContent)}</div>`;
+                if (numbers.length > 0) {
+                    return numbers.map(num => `<sup class="citation-ref">${num}</sup>`).join('');
+                }
 
-        // Add sources toggle
-        if (usedSources.length > 0) {
-            usedSources.sort((a, b) => a.number - b.number);
+                const looksLikeId = parts.some(p => p.length > 10);
+                return looksLikeId ? "" : match;
+            });
 
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'sources-toggle';
-            toggleBtn.innerHTML = `<span>View ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-            
-            const sourcesDiv = document.createElement('div');
-            sourcesDiv.className = 'sources-container';
-            
-            let sourcesHtml = '<div class="sources-title">Sources</div><div class="sources-grid">';
-            usedSources.forEach(src => {
-                sourcesHtml += `
+            div.innerHTML = `<div class="markdown-content">${marked.parse(processedContent)}</div>`;
+
+            // Add sources toggle
+            if (usedSources.length > 0) {
+                usedSources.sort((a, b) => a.number - b.number);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'sources-toggle';
+                toggleBtn.innerHTML = `<span>View ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources-container';
+
+                let sourcesHtml = '<div class="sources-title">Sources</div><div class="sources-grid">';
+                usedSources.forEach(src => {
+                    sourcesHtml += `
                     <div class="source-card">
                         <div class="source-header">
                             <div class="source-number">${src.number}</div>
@@ -890,59 +931,58 @@
                         <div class="source-snippet">"${src.text}"</div>
                     </div>
                 `;
-            });
-            sourcesHtml += '</div>';
-            sourcesDiv.innerHTML = sourcesHtml;
-            
-            toggleBtn.onclick = () => {
-                sourcesDiv.classList.toggle('show');
-                const isShown = sourcesDiv.classList.contains('show');
-                toggleBtn.innerHTML = `<span>${isShown ? 'Hide' : 'View'} ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isShown ? 'rotate(180deg)' : 'rotate(0deg)'}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-            };
+                });
+                sourcesHtml += '</div>';
+                sourcesDiv.innerHTML = sourcesHtml;
 
-            div.appendChild(toggleBtn);
-            div.appendChild(sourcesDiv);
+                toggleBtn.onclick = () => {
+                    sourcesDiv.classList.toggle('show');
+                    const isShown = sourcesDiv.classList.contains('show');
+                    toggleBtn.innerHTML = `<span>${isShown ? 'Hide' : 'View'} ${usedSources.length} Sources</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isShown ? 'rotate(180deg)' : 'rotate(0deg)'}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                };
+
+                div.appendChild(toggleBtn);
+                div.appendChild(sourcesDiv);
+            }
+
+            return div;
         }
 
-        return div;
-    }
+        function addMessage(content, role) {
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            div.textContent = content;
 
-    function addMessage(content, role) {
-        const div = document.createElement('div');
-        div.className = `message ${role}-message`;
-        div.textContent = content;
-
-        if (role === 'user') {
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'message-actions';
-            actionsDiv.innerHTML = `<button class="retry-btn" title="Retry Query" onclick="retryMessage(this)">
+            if (role === 'user') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `<button class="retry-btn" title="Retry Query" onclick="retryMessage(this)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
             </button>`;
-            div.appendChild(actionsDiv);
+                div.appendChild(actionsDiv);
+            }
+
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        chatContainer.appendChild(div);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+        function retryMessage(btn) {
+            const messageDiv = btn.closest('.message');
+            let text = "";
+            for (let node of messageDiv.childNodes) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    text += node.textContent;
+                }
+            }
+            text = text.trim();
 
-    function retryMessage(btn) {
-        const messageDiv = btn.closest('.message');
-        let text = "";
-        for (let node of messageDiv.childNodes) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                text += node.textContent;
+            if (text) {
+                userInput.value = text;
+                sendMessage();
             }
         }
-        text = text.trim();
-        
-        if (text) {
-            userInput.value = text;
-            sendMessage();
-        }
-    }
-</script>
+    </script>
 
 </body>
+
 </html>
-
-

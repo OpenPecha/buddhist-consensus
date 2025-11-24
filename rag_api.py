@@ -81,7 +81,7 @@ def generate_expanded_queries(query: str) -> Dict[str, str]:
     """
     try:
         response = genai_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             contents=prompt,
             config={'response_mime_type': 'application/json'}
         )
@@ -237,8 +237,11 @@ def generate_answer(state: State):
     Do NOT refuse to answer; provide the Buddhist context while maintaining the safety disclaimer.
     """)
     
-    response = llm.invoke([system_prompt] + messages)
-    return {"messages": [response]}
+    response_content = ""
+    for chunk in llm.stream([system_prompt] + messages):
+        response_content += chunk.content
+        
+    return {"messages": [AIMessage(content=response_content)]}
 
 def rewrite_question(state: State):
     """Transform the query to produce a better question."""
@@ -361,41 +364,39 @@ async def chat_stream(request: ChatRequest):
         
         retrieved_items = []
         
-        async for output in app_graph.astream(inputs):
-            for key, value in output.items():
-                if "messages" in value:
-                    for msg in value["messages"]:
-                        if key == "retrieve" and isinstance(msg, ToolMessage):
-                            try:
-                                content = msg.content
-                                if isinstance(content, str):
-                                    parsed_output = json.loads(content)
-                                    # Check if new structure {results, queries}
-                                    if isinstance(parsed_output, dict) and "results" in parsed_output:
-                                        data = parsed_output["results"]
-                                        queries = parsed_output.get("queries", {})
-                                        if isinstance(data, list):
-                                            retrieved_items.extend(data)
-                                            # Stream search results event with query info
-                                            event_data = {
-                                                "type": "search_results", 
-                                                "data": data,
-                                                "queries": queries
-                                            }
-                                            yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-                                    elif isinstance(parsed_output, list):
-                                        # Legacy/Fallback support
-                                        data = parsed_output
-                                        retrieved_items.extend(data)
-                                        event_data = {"type": "search_results", "data": data}
-                                        yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-                            except Exception:
-                                pass
+        async for event in app_graph.astream_events(inputs, version="v1"):
+            kind = event["event"]
+            
+            if kind == "on_tool_end" and event["name"] == "hybrid_search_tool":
+                try:
+                    content = event["data"].get("output")
+                    if content:
+                        if hasattr(content, "content"):
+                             content = content.content
                         
-                        if key == "generate_answer" and isinstance(msg, AIMessage):
-                            if not msg.tool_calls:
-                                event_data = {"type": "answer", "data": str(msg.content)}
-                                yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+                        if isinstance(content, str):
+                            parsed_output = json.loads(content)
+                            if isinstance(parsed_output, dict) and "results" in parsed_output:
+                                data = parsed_output["results"]
+                                queries = parsed_output.get("queries", {})
+                                if isinstance(data, list):
+                                    retrieved_items.extend(data)
+                                    event_data = {
+                                        "type": "search_results", 
+                                        "data": data,
+                                        "queries": queries
+                                    }
+                                    yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+                except Exception:
+                    pass
+            
+            elif kind == "on_chat_model_stream":
+                node_name = event.get("metadata", {}).get("langgraph_node")
+                if node_name in ["generate_answer", "generate_query_or_respond"]:
+                    chunk = event["data"]["chunk"]
+                    if chunk.content:
+                        event_data = {"type": "token", "data": chunk.content}
+                        yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
         
         event_data = {"type": "done", "data": {"retrieved_items": retrieved_items}}
         yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
