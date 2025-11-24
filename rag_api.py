@@ -216,8 +216,13 @@ def generate_answer(state: State):
     
     system_prompt = SystemMessage(content="""
     You are a helpful, friendly academic assistant for Buddhist studies, acting as a supportive friend.
-    Use the provided retrieved context to answer the user's question in multiple languages if needed (English, Tibetan).
     
+    LANGUAGE INSTRUCTION:
+    1. Detect the language of the user's last message (Tibetan or English).
+    2. You MUST answer in the SAME language as the user's query.
+    3. If the user explicitly requests a specific language, honor that request.
+    4. Do NOT switch languages unless asked. If the query is in Tibetan, the answer MUST be in Tibetan. If the query is in English, the answer MUST be in English.
+
     CRITICAL CITATION RULES:
     1. Every single sentence or claim you make based on the text must be immediately followed by a citation.
     2. Use the EXACT format [ID] for citations. Do NOT use the title in the citation bracket, ONLY the ID.
@@ -362,8 +367,6 @@ async def chat_stream(request: ChatRequest):
         
         inputs = {"messages": lc_messages}
         
-        retrieved_items = []
-        
         async for event in app_graph.astream_events(inputs, version="v1"):
             kind = event["event"]
             
@@ -380,7 +383,6 @@ async def chat_stream(request: ChatRequest):
                                 data = parsed_output["results"]
                                 queries = parsed_output.get("queries", {})
                                 if isinstance(data, list):
-                                    retrieved_items.extend(data)
                                     event_data = {
                                         "type": "search_results", 
                                         "data": data,
@@ -398,7 +400,7 @@ async def chat_stream(request: ChatRequest):
                         event_data = {"type": "token", "data": chunk.content}
                         yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
         
-        event_data = {"type": "done", "data": {"retrieved_items": retrieved_items}}
+        event_data = {"type": "done", "data": {}}
         yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
     
     return StreamingResponse(
