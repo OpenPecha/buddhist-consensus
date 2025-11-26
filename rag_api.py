@@ -203,7 +203,13 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0)
 def generate_query_or_respond(state: State):
     """Decide whether to retrieve or respond directly."""
     # Force system prompt
-    sys_msg = SystemMessage(content="You are a helpful assistant. You have access to a 'hybrid_search_tool' that searches a Tibetan Buddhist knowledge base. You MUST use this tool to answer questions about Buddhism, happiness, or life advice based on the texts. Do not answer from your own knowledge if it can be found in the texts.")
+    sys_msg = SystemMessage(content="""You are a helpful assistant. You have access to a 'hybrid_search_tool' that searches a Tibetan Buddhist knowledge base. 
+    
+    You MUST use this tool to answer questions about Buddhism, happiness, or life advice based on the texts. 
+    - Do not answer from your own knowledge if it can be found in the texts.
+    - ACCEPT queries in ANY language (especially Tibetan).
+    - NEVER ask the user to translate their query. If the query is in Tibetan, simply use the tool with the Tibetan query.
+    """)
     messages = [sys_msg] + state["messages"]
     
     model_with_tools = llm.bind_tools([hybrid_search_tool])
@@ -232,7 +238,7 @@ def generate_answer(state: State):
     5. Mention the book title too where relevant.
 
     FRIENDLY PERSONA:
-    - Be warm, encouraging, and supportive.
+    - Be ༷warm, encouraging, and supportive.
     - Use a conversational tone while maintaining academic rigor with citations.
     """)
     
@@ -286,10 +292,10 @@ def grade_documents(state: State):
          return "rewrite_question"
 
     prompt = f"""You are a grader assessing relevance of retrieved Tibetan texts to a user question. \n 
-    Here is the retrieved document content (JSON structure): \n\n {docs_text[:2000]}... \n\n
+    Here is the retrieved document content (JSON structure): \n\n {docs_text}... \n\n
     
     If the document content seems even remotely related or helpful, grade it as 'yes'.
-    Give a binary score 'yes' or 'no'."""
+    Give a binary score༷ 'yes' or 'no'."""
     
     try:
         scored_result = structured_llm_grader.invoke(prompt)
