@@ -239,7 +239,6 @@ def generate_answer(state: State):
     6. TIBETAN CITATION PLACEMENT: If the sentence ends with a shad (།), place the citation AFTER the shad.
        Example: ...བཞུགས་སོ། [ID] (Correct)
        Example: ...བཞུགས་སོ [ID]། (Incorrect)
-
     FRIENDLY PERSONA:
     - Be ༷warm, encouraging, and supportive.
     - Use a conversational tone while maintaining academic rigor with citations.
