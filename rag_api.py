@@ -236,6 +236,9 @@ def generate_answer(state: State):
     3. If the retrieved text is in Tibetan, quote the relevant Tibetan phrase in the answer where appropriate.
     4. If you cannot find the answer in the context, state that you don't know.
     5. Mention the book title too where relevant.
+    6. TIBETAN CITATION PLACEMENT: If the sentence ends with a shad (།), place the citation AFTER the shad.
+       Example: ...བཞུགས་སོ། [ID] (Correct)
+       Example: ...བཞུགས་སོ [ID]། (Incorrect)
 
     FRIENDLY PERSONA:
     - Be ༷warm, encouraging, and supportive.
