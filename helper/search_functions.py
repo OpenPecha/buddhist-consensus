@@ -1,6 +1,7 @@
 
 # Internal search functions
 from typing import Optional
+import asyncio
 
 from db import MILVUS_COLLECTION_NAME, milvus_client
 from helper.tool import get_embedding
@@ -11,8 +12,8 @@ from helper.chat_utils import format_results
 
 async def perform_hybrid_search(query: str, limit: int, filter_expr: Optional[str], return_text: bool = True) -> SearchResponse:
     """Perform hybrid search combining BM25 and semantic search."""
-    # Get embedding for semantic search
-    embedding = get_embedding(query)
+    # Get embedding for semantic search (run in thread pool to avoid blocking event loop)
+    embedding = await asyncio.to_thread(get_embedding, query)
     
     # BM25 search parameters
     search_param_1 = {
@@ -77,8 +78,8 @@ async def perform_bm25_search(query: str, limit: int, filter_expr: Optional[str]
 
 async def perform_semantic_search(query: str, limit: int, filter_expr: Optional[str], return_text: bool = True) -> SearchResponse:
     """Perform semantic (dense vector) search."""
-    # Get embedding
-    embedding = get_embedding(query)
+    # Get embedding (run in thread pool to avoid blocking event loop)
+    embedding = await asyncio.to_thread(get_embedding, query)
     
     # Determine output fields based on return_text parameter
     output_fields = ['text','language'] if return_text else []

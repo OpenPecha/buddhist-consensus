@@ -131,7 +131,7 @@ async def health():
     MILVUS_TOKEN = os.getenv("MILVUS_TOKEN")
     MILVUS_COLLECTION_NAME = os.getenv("MILVUS_COLLECTION_NAME", "test_kangyur_tengyur")
     if not all([MILVUS_URI, MILVUS_TOKEN,MILVUS_COLLECTION_NAME, GEMINI_API_KEY]):
-        return HTTPException(status_code=500, detail="Missing environment variables for Milvus or Gemini.")
+        raise HTTPException(status_code=500, detail="Missing environment variables for Milvus or Gemini.")
     return {"status": "healthy"}
 
 

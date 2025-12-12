@@ -72,10 +72,3 @@ def format_results(results: List, query: str, search_type: str) -> SearchRespons
         count=len(formatted_results)
     )
 
-
-def build_children_filter_from_parents(parent_ids: List[Any]) -> Optional[str]:
-    """Build a filter expression for children of the given parent ids."""
-    if not parent_ids:
-        return None
-    quoted = '", "'.join(_escape_milvus_string(str(pid)) for pid in parent_ids)
-    return f'parent_id in ["{quoted}"]'
