@@ -66,19 +66,58 @@ jobs:
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --query taskDefinition > task-definition.json
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: webuddhist-ai-api
-          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Update image in task definition
+        run: |
+          # Update the image URI in the task definition
+          python3 << EOF
+          import json
+          import sys
+          
+          with open('task-definition.json', 'r') as f:
+              task_def = json.load(f)
+          
+          # Update the image for the container
+          for container in task_def.get('containerDefinitions', []):
+              if container['name'] == 'webuddhist-ai-api':
+                  container['image'] = '${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest'
+                  break
+          
+          # Remove fields that shouldn't be in register-task-definition
+          task_def.pop('taskDefinitionArn', None)
+          task_def.pop('revision', None)
+          task_def.pop('status', None)
+          task_def.pop('requiresAttributes', None)
+          task_def.pop('compatibilities', None)
+          task_def.pop('registeredAt', None)
+          task_def.pop('registeredBy', None)
+          
+          with open('task-definition.json', 'w') as f:
+              json.dump(task_def, f, indent=2)
+          EOF
 
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE_NAME }}
-          cluster: ${{ env.ECS_CLUSTER_NAME }}
-          wait-for-service-stability: true
+      - name: Register new task definition revision
+        id: task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task-def-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "Registered task definition: $TASK_DEF_ARN"
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service ${{ env.ECS_SERVICE_NAME }} \
+            --task-definition ${{ steps.task-def.outputs.task-def-arn }} \
+            --force-new-deployment
+
+      - name: Wait for service stability
+        run: |
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --services ${{ env.ECS_SERVICE_NAME }}
+          echo "Service is stable!"
 
