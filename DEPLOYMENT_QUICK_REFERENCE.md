@@ -65,16 +65,36 @@ Set via Secrets Manager (see above) or directly in task definition:
 ## Quick Setup Commands (AWS CLI)
 
 ```bash
-# Register task definition
+# 1. Register task definition (first time)
 aws ecs register-task-definition \
   --cli-input-json file://ecs-task-definition.json \
   --region us-east-1
 
-# Update service (after task definition is registered)
+# 2. Create ECS service (first time only)
+# Option A: Use the helper script
+chmod +x create-ecs-service.sh
+./create-ecs-service.sh
+
+# Option B: Create manually via AWS Console
+# Follow steps in AWS_SETUP_INSTRUCTIONS.md section "8. Create ECS Service"
+
+# Option C: Create via CLI (requires VPC/subnet/security group IDs)
+aws ecs create-service \
+  --cluster webuddhist-ai-cluster \
+  --service-name webuddhist-ai-service \
+  --task-definition webuddhist-ai-task \
+  --desired-count 1 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx],assignPublicIp=ENABLED}" \
+  --platform-version LATEST \
+  --region us-east-1
+
+# 3. Update service (after task definition is updated)
 aws ecs update-service \
   --cluster webuddhist-ai-cluster \
   --service webuddhist-ai-service \
   --task-definition webuddhist-ai-task \
+  --force-new-deployment \
   --region us-east-1
 ```
 
