@@ -1,4 +1,4 @@
-name: Build and Push Docker Image to ECR
+name: Build, Push, and Deploy to ECS Fargate
 
 on:
   push:
@@ -10,6 +10,9 @@ env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: public.ecr.aws/t8u7n5a4
   IMAGE_NAME: webuddhist-ai-api
+  ECS_CLUSTER_NAME: webuddhist-ai-cluster
+  ECS_SERVICE_NAME: webuddhist-ai-service
+  ECS_TASK_DEFINITION: webuddhist-ai-task
 
 jobs:
   build-and-push:
@@ -41,4 +44,41 @@ jobs:
       - name: Push Docker image to ECR Public
         run: |
           docker push ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy-to-ecs:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+            --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: webuddhist-ai-api
+          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
 

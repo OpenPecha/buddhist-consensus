@@ -5,8 +5,10 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# (Optional) system deps if you need build wheels
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+# Install system dependencies including curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
   && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
