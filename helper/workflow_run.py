@@ -1,3 +1,4 @@
+from helper.config import LOW_PRIORITY_MODEL
 from helper.tool import hybrid_search_tool
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
@@ -7,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langgraph.prebuilt import ToolNode, tools_condition
 
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0)
+llm = ChatGoogleGenerativeAI(model=LOW_PRIORITY_MODEL, temperature=0)
 structured_llm_grader = llm.with_structured_output(Grade)
 
 

@@ -9,6 +9,8 @@ from typing import List,Dict
 from google import genai
 from google.genai.types import EmbedContentConfig
 
+from helper.config import EMBEDDING_MODEL, HIGH_PRIORITY_MODEL
+
 loaded = load_dotenv(find_dotenv(filename=".env", usecwd=True), override=True)
 
 MILVUS_COLLECTION_NAME = os.getenv("MILVUS_COLLECTION_NAME", "test_kangyur_tengyur")
@@ -23,7 +25,7 @@ doc_cfg = EmbedContentConfig(task_type="RETRIEVAL_QUERY", output_dimensionality=
 def get_embedding(text: str) -> List[float]:
     """Generate embedding for the given text using Gemini."""
     resp = genai_client.models.embed_content(
-        model="gemini-embedding-001",
+        model=EMBEDDING_MODEL,
         contents=text,
         config=doc_cfg
     )
@@ -50,7 +52,7 @@ def generate_expanded_queries(query: str) -> Dict[str, str]:
     """
     try:
         response = genai_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=HIGH_PRIORITY_MODEL,
             contents=prompt,
             config={'response_mime_type': 'application/json'}
         )

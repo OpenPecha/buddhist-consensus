@@ -315,3 +315,5 @@ Make sure these secrets are set in your GitHub repository:
 - Set up CI/CD pipeline (already done via GitHub Actions)
 - Configure custom domain with Route 53 and ACM certificate
 
+
+

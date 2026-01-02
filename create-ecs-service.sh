@@ -90,3 +90,7 @@ echo ""
 echo "You can check the service status with:"
 echo "  aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --region $REGION"
 
+
+
+
+
