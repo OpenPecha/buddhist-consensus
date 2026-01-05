@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException,Depends,Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from typing import  AsyncGenerator
@@ -12,7 +12,7 @@ from helper.workflow_run import app_graph
 from langchain_core.messages import  HumanMessage, AIMessage, SystemMessage
 from route.search import search_router
 from type.chat import ChatRequest
-
+from fastapi_throttle import RateLimiter
 
 
 # Load environment variables
@@ -22,10 +22,10 @@ if not loaded:
 
 
 
-
-
+LIMIT_TIMES = 5
+LIMIT_SECONDS = 60
 # --- FastAPI Application ---
-
+api_limit = RateLimiter(times=LIMIT_TIMES, seconds=LIMIT_SECONDS)
 app = FastAPI(title="Agentic RAG API")
 
 app.add_middleware(
@@ -37,7 +37,7 @@ app.add_middleware(
 )
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse,dependencies=[Depends(api_limit)])
 async def read_root():
     try:
         with open("chat_ui.html", "r", encoding="utf-8") as f:
@@ -47,9 +47,9 @@ async def read_root():
     
     
     
-app.include_router(search_router,prefix='/search',tags=['search'])
+app.include_router(search_router,prefix='/search',tags=['search'],dependencies=[Depends(api_limit)])
 
-@app.post("/api/chat/stream")
+@app.post("/api/chat/stream",dependencies=[Depends(api_limit)])
 async def chat_stream(request: ChatRequest):
     """SSE endpoint"""
     async def event_generator() -> AsyncGenerator[str, None]:
@@ -111,7 +111,7 @@ async def chat_stream(request: ChatRequest):
     )
 
 
-@app.get("/health")
+@app.get("/health",dependencies=[Depends(api_limit)])
 async def health():
     
     # Setup API Keys
@@ -126,8 +126,6 @@ async def health():
     if not all([MILVUS_URI, MILVUS_TOKEN,MILVUS_COLLECTION_NAME, GEMINI_API_KEY]):
         raise HTTPException(status_code=500, detail="Missing environment variables for Milvus or Gemini.")
     return {"status": "healthy"}
-
-
 
 
 if __name__ == "__main__":
