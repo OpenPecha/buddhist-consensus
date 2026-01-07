@@ -1,4 +1,4 @@
-from helper.config import LOW_PRIORITY_MODEL
+from helper.config import HIGH_PRIORITY_MODEL, LOW_PRIORITY_MODEL
 from helper.tool import hybrid_search_tool
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
@@ -8,13 +8,24 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langgraph.prebuilt import ToolNode, tools_condition
 
 
-llm = ChatGoogleGenerativeAI(model=LOW_PRIORITY_MODEL, temperature=0)
-structured_llm_grader = llm.with_structured_output(Grade)
+llm_low = ChatGoogleGenerativeAI(model=LOW_PRIORITY_MODEL, temperature=0)
+llm_high = ChatGoogleGenerativeAI(model=HIGH_PRIORITY_MODEL, temperature=0)
+
+def with_structured_output_fallback(llm, alt_llm, output_class):
+    """
+    Try to create a structured output LLM with the primary model;
+    on error, use high-priority (fallback) LLM.
+    """
+    try:
+        return llm.with_structured_output(output_class)
+    except Exception:
+        return alt_llm.with_structured_output(output_class)
+
+structured_llm_grader = with_structured_output_fallback(llm_low, llm_high, Grade)
 
 
 def generate_query_or_respond(state: State):
-    """Decide whether to retrieve or respond directly."""
-    # Force system prompt
+    """Decide whether to retrieve or respond directly. Uses low-priority first, then fallback to high-priority on error."""
     sys_msg = SystemMessage(content="""You are a helpful assistant. You have access to a 'hybrid_search_tool' that searches a Tibetan Buddhist knowledge base. 
     
     You MUST use this tool to answer questions about Buddhism, happiness, or life advice based on the texts. 
@@ -23,15 +34,19 @@ def generate_query_or_respond(state: State):
     - NEVER ask the user to translate their query. If the query is in Tibetan, simply use the tool with the Tibetan query.
     """)
     messages = [sys_msg] + state["messages"]
-    
-    model_with_tools = llm.bind_tools([hybrid_search_tool])
-    response = model_with_tools.invoke(messages)
+
+    try:
+        model_with_tools = llm_low.bind_tools([hybrid_search_tool])
+        response = model_with_tools.invoke(messages)
+    except Exception:
+        model_with_tools = llm_high.bind_tools([hybrid_search_tool])
+        response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
+
 def generate_answer(state: State):
-    """Generate answer using retrieved context."""
+    """Generate answer using retrieved context. Uses low-priority by default, high-priority if error."""
     messages = state["messages"]
-    
     system_prompt = SystemMessage(content="""
     You are a helpful, friendly academic assistant for Buddhist studies, acting as a supportive friend.
     
@@ -55,20 +70,24 @@ def generate_answer(state: State):
     - Be ༷warm, encouraging, and supportive.
     - Use a conversational tone while maintaining academic rigor with citations.
     """)
-    
     response_content = ""
-    for chunk in llm.stream([system_prompt] + messages):
-        response_content += chunk.content
-        
+    try:
+        for chunk in llm_low.stream([system_prompt] + messages):
+            response_content += chunk.content
+    except Exception:
+        response_content = ""
+        for chunk in llm_high.stream([system_prompt] + messages):
+            response_content += chunk.content
     return {"messages": [AIMessage(content=response_content)]}
 
+
 def rewrite_question(state: State):
-    """Transform the query to produce a better question."""
+    """Transform the query to produce a better question. Uses low-priority by default, high-priority if error."""
     messages = state["messages"]
     # Find last human message
     last_human = next((m for m in reversed(messages) if isinstance(m, HumanMessage)), None)
     question = last_human.content if last_human else messages[-1].content
-    
+
     msg = [
         HumanMessage(
             content=f"""Look at the input and try to reason about the underlying semantic intent / meaning. 
@@ -77,48 +96,46 @@ def rewrite_question(state: State):
             Formulate an improved question for a search engine to find Tibetan Buddhist texts:"""
         )
     ]
-    response = llm.invoke(msg)
+    try:
+        response = llm_low.invoke(msg)
+    except Exception:
+        response = llm_high.invoke(msg)
     return {"messages": [HumanMessage(content=response.content)]}
 
 
-
-
 def grade_documents(state: State):
-    """Determines whether the retrieved documents are relevant."""
+    """Determines whether the retrieved documents are relevant using low-priority by default and high-priority grader if error."""
     messages = state["messages"]
-    
     rewrite_count = len([m for m in messages if isinstance(m, HumanMessage) and "Look at the input" in str(m.content)])
     if rewrite_count > 2:
          return "generate_answer"
-
     tool_messages = [m for m in messages if isinstance(m, ToolMessage)]
     if not tool_messages:
         return "generate_answer"
-        
     latest_tool_msg = tool_messages[-1]
     docs_text = str(latest_tool_msg.content)
-    
     if not docs_text or docs_text == "[]" or "Error" in docs_text:
          if rewrite_count > 0:
              return "generate_answer"
          return "rewrite_question"
-
     prompt = f"""You are a grader assessing relevance of retrieved Tibetan texts to a user question. \n 
     Here is the retrieved document content (JSON structure): \n\n {docs_text}... \n\n
-    
+
     If the document content seems even remotely related or helpful, grade it as 'yes'.
     Give a binary score༷ 'yes' or 'no'."""
-    
     try:
         scored_result = structured_llm_grader.invoke(prompt)
         if scored_result.binary_score == "yes":
             return "generate_answer"
-    except:
-        pass
-        
+    except Exception:
+        try:
+            backup_llm_grader = llm_high.with_structured_output(Grade)
+            scored_result = backup_llm_grader.invoke(prompt)
+            if scored_result.binary_score == "yes":
+                return "generate_answer"
+        except Exception:
+            pass
     return "rewrite_question"
-
-
 
 
 
