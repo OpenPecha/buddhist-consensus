@@ -9,7 +9,7 @@ import json
 
 # LangChain / LangGraph Imports
 from helper.workflow_run import app_graph
-from langchain_core.messages import  HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import  HumanMessage, AIMessage, SystemMessage, ToolMessage
 from route.search import search_router
 from type.chat import ChatRequest
 from fastapi_throttle import RateLimiter
@@ -72,16 +72,17 @@ async def chat_stream(request: ChatRequest):
                     lc_messages.append(SystemMessage(content=msg.content))
 
             inputs = {"messages": lc_messages}
-
-            tokens_yielded = False
+            isEmpty=True
             async for event in app_graph.astream_events(inputs, version="v1"):
                 kind = event["event"]
+                
 
                 if kind == "on_tool_end" and event["name"] == "hybrid_search_tool":
                     try:
                         content = event["data"].get("output")
                         if content:
                             if hasattr(content, "content"):
+                                isEmpty=False
                                 content = content.content
 
                             if isinstance(content, str):
@@ -104,15 +105,12 @@ async def chat_stream(request: ChatRequest):
                     if node_name in ["generate_answer", "generate_query_or_respond"]:
                         chunk = event["data"]["chunk"]
                         if chunk.content:
+                            isEmpty=False
                             event_data = {"type": "token", "data": chunk.content}
-                            tokens_yielded = True
                             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-
-            if not tokens_yielded:
-                fallback_data = {"type": "token", "data": 'I cannot answer this question. My knowledge base is specific to Tibetan Buddhism and does not contain information about a concept of "God" in the way it might be understood in other religions.'}
-                yield f"data: {json.dumps(fallback_data, ensure_ascii=False)}\n\n"
-
-            event_data = {"type": "done", "data": {}}
+            if isEmpty:
+                event_data = {"type": "token", "data": "Nothing to show"}
+                yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
         except Exception as e:
             error_data = {"type": "error", "data": {"message": str(e)}}
@@ -123,6 +121,81 @@ async def chat_stream(request: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
     )
+
+
+@app.post("/api/chat", dependencies=[Depends(api_limit)])
+async def chat(request: ChatRequest):
+    """Non-streaming endpoint that returns complete response"""
+    MAX_MESSAGES = 50
+    try:
+        # Limit request.messages to the last 50 elements if exceeded
+        messages = request.messages
+        if len(messages) > MAX_MESSAGES:
+            messages = messages[-MAX_MESSAGES:]
+
+        lc_messages = []
+        for msg in messages:
+            if msg.role == "user":
+                lc_messages.append(HumanMessage(content=msg.content))
+            elif msg.role == "assistant":
+                lc_messages.append(AIMessage(content=msg.content))
+            elif msg.role == "system":
+                lc_messages.append(SystemMessage(content=msg.content))
+
+        inputs = {"messages": lc_messages}
+
+        # Invoke the graph to get final state
+        final_state = app_graph.invoke(inputs)
+        final_messages = final_state.get("messages", [])
+
+        # Extract answer from last AIMessage
+        answer = ""
+        for msg in reversed(final_messages):
+            if isinstance(msg, AIMessage):
+                answer = msg.content
+                break
+
+        # Extract search results from ToolMessage(s) with hybrid_search_tool
+        search_results = []
+        queries = {}
+        for msg in final_messages:
+            if isinstance(msg, ToolMessage):
+                try:
+                    content = msg.content
+                    if isinstance(content, str):
+                        parsed_output = json.loads(content)
+                        if isinstance(parsed_output, dict) and "results" in parsed_output:
+                            data = parsed_output["results"]
+                            queries = parsed_output.get("queries", {})
+                            if isinstance(data, list):
+                                search_results = data
+                                # Use the last tool message result
+                                break
+                except Exception:
+                    pass
+        
+        response_data = {
+            "type": "done",
+            "data": {
+                "answer": answer,
+                "search_results": search_results,
+                "queries": queries
+            }
+        }
+        
+        return response_data
+        
+    except Exception as e:
+        error_data = {
+            "type": "error",
+            "data": {
+                "message": str(e),
+                "answer": "",
+                "search_results": [],
+                "queries": {}
+            }
+        }
+        return error_data
 
 
 @app.get("/health",dependencies=[Depends(api_limit)])
