@@ -73,6 +73,7 @@ async def chat_stream(request: ChatRequest):
 
             inputs = {"messages": lc_messages}
 
+            tokens_yielded = False
             async for event in app_graph.astream_events(inputs, version="v1"):
                 kind = event["event"]
 
@@ -104,7 +105,12 @@ async def chat_stream(request: ChatRequest):
                         chunk = event["data"]["chunk"]
                         if chunk.content:
                             event_data = {"type": "token", "data": chunk.content}
+                            tokens_yielded = True
                             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+
+            if not tokens_yielded:
+                fallback_data = {"type": "token", "data": 'I cannot answer this question. My knowledge base is specific to Tibetan Buddhism and does not contain information about a concept of "God" in the way it might be understood in other religions.'}
+                yield f"data: {json.dumps(fallback_data, ensure_ascii=False)}\n\n"
 
             event_data = {"type": "done", "data": {}}
             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
