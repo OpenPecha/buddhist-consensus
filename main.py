@@ -22,7 +22,7 @@ if not loaded:
 
 
 
-LIMIT_TIMES = 5
+LIMIT_TIMES = 10
 LIMIT_SECONDS = 60
 # --- FastAPI Application ---
 api_limit = RateLimiter(times=LIMIT_TIMES, seconds=LIMIT_SECONDS)
@@ -49,32 +49,40 @@ async def read_root():
     
 app.include_router(search_router,prefix='/search',tags=['search'],dependencies=[Depends(api_limit)])
 
-@app.post("/api/chat/stream",dependencies=[Depends(api_limit)])
+
+
+@app.post("/api/chat/stream", dependencies=[Depends(api_limit)])
 async def chat_stream(request: ChatRequest):
     """SSE endpoint"""
+    MAX_MESSAGES = 50
     async def event_generator() -> AsyncGenerator[str, None]:
         try:
+            # Limit request.messages to the last 4000 elements if exceeded
+            messages = request.messages
+            if len(messages) > MAX_MESSAGES:
+                messages = messages[-MAX_MESSAGES:]
+
             lc_messages = []
-            for msg in request.messages:
+            for msg in messages:
                 if msg.role == "user":
                     lc_messages.append(HumanMessage(content=msg.content))
                 elif msg.role == "assistant":
                     lc_messages.append(AIMessage(content=msg.content))
                 elif msg.role == "system":
                     lc_messages.append(SystemMessage(content=msg.content))
-            
+
             inputs = {"messages": lc_messages}
-            
+
             async for event in app_graph.astream_events(inputs, version="v1"):
                 kind = event["event"]
-                
+
                 if kind == "on_tool_end" and event["name"] == "hybrid_search_tool":
                     try:
                         content = event["data"].get("output")
                         if content:
                             if hasattr(content, "content"):
-                                 content = content.content
-                            
+                                content = content.content
+
                             if isinstance(content, str):
                                 parsed_output = json.loads(content)
                                 if isinstance(parsed_output, dict) and "results" in parsed_output:
@@ -82,14 +90,14 @@ async def chat_stream(request: ChatRequest):
                                     queries = parsed_output.get("queries", {})
                                     if isinstance(data, list):
                                         event_data = {
-                                            "type": "search_results", 
+                                            "type": "search_results",
                                             "data": data,
                                             "queries": queries
                                         }
                                         yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
                     except Exception:
                         pass
-                
+
                 elif kind == "on_chat_model_stream":
                     node_name = event.get("metadata", {}).get("langgraph_node")
                     if node_name in ["generate_answer", "generate_query_or_respond"]:
@@ -97,13 +105,13 @@ async def chat_stream(request: ChatRequest):
                         if chunk.content:
                             event_data = {"type": "token", "data": chunk.content}
                             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-            
+
             event_data = {"type": "done", "data": {}}
             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
         except Exception as e:
             error_data = {"type": "error", "data": {"message": str(e)}}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-    
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
