@@ -52,13 +52,19 @@ app.include_router(search_router,prefix='/search',tags=['search'],dependencies=[
 
 
 @app.post("/api/chat/stream", dependencies=[Depends(api_limit)])
-async def chat_stream(request: ChatRequest):
-    """SSE endpoint"""
-    MAX_MESSAGES = 50
+async def chat_stream(request: Request, chat_request: ChatRequest):
+    """SSE endpoint with proper isolation and completion signaling"""
+    import uuid
+    
+    MAX_MESSAGES = 30
+    
     async def event_generator() -> AsyncGenerator[str, None]:
+        # Generate unique run_id for request isolation
+        run_id = str(uuid.uuid4())
+        has_content = False
+        
         try:
-            # Limit request.messages to the last 4000 elements if exceeded
-            messages = request.messages
+            messages = chat_request.messages
             if len(messages) > MAX_MESSAGES:
                 messages = messages[-MAX_MESSAGES:]
 
@@ -72,17 +78,20 @@ async def chat_stream(request: ChatRequest):
                     lc_messages.append(SystemMessage(content=msg.content))
 
             inputs = {"messages": lc_messages}
-            isEmpty=True
-            async for event in app_graph.astream_events(inputs, version="v1"):
+            config = {"configurable": {"thread_id": run_id}}
+            
+            async for event in app_graph.astream_events(inputs, config=config, version="v2"):
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+                    
                 kind = event["event"]
-                
 
                 if kind == "on_tool_end" and event["name"] == "hybrid_search_tool":
                     try:
                         content = event["data"].get("output")
                         if content:
                             if hasattr(content, "content"):
-                                isEmpty=False
                                 content = content.content
 
                             if isinstance(content, str):
@@ -91,35 +100,47 @@ async def chat_stream(request: ChatRequest):
                                     data = parsed_output["results"]
                                     queries = parsed_output.get("queries", {})
                                     if isinstance(data, list):
+                                        has_content = True
                                         event_data = {
                                             "type": "search_results",
                                             "data": data,
                                             "queries": queries
                                         }
                                         yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-                    except Exception:
-                        pass
+                    except json.JSONDecodeError as e:
+                        print(f"[{run_id}] JSON decode error in tool output: {e}")
+                    except Exception as e:
+                        print(f"[{run_id}] Error processing tool output: {e}")
 
-                elif kind == "on_chat_model_stream":
+                if kind == "on_chat_model_stream":
                     node_name = event.get("metadata", {}).get("langgraph_node")
                     if node_name in ["generate_answer", "generate_query_or_respond"]:
-                        chunk = event["data"]["chunk"]
-                        if chunk.content:
-                            isEmpty=False
+                        chunk = event["data"].get("chunk")
+                        if chunk and chunk.content:
+                            has_content = True
                             event_data = {"type": "token", "data": chunk.content}
                             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-            if isEmpty:
-                event_data = {"type": "token", "data": "Nothing to show"}
-                yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
+            
+            # Send completion signal
+            if not has_content:
+                yield f"data: {json.dumps({'type': 'token', 'data': 'No results found.'}, ensure_ascii=False)}\n\n"
+            
+            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+            
         except Exception as e:
+            print(f"[{run_id}] Stream error: {e}")
             error_data = {"type": "error", "data": {"message": str(e)}}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream"
+        }
     )
 
 
