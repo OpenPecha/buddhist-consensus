@@ -63,6 +63,40 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
         run_id = str(uuid.uuid4())
         has_content = False
         
+        # Repetition detection state
+        REPETITION_THRESHOLD = 4
+        MIN_CHUNK_LENGTH = 10  # Only track chunks with meaningful content
+        recent_chunks: list[str] = []
+        repetition_detected = False
+        
+        def check_repetition(new_chunk: str) -> bool:
+            """Detect if the stream is stuck in a repetition loop."""
+            if len(new_chunk.strip()) < MIN_CHUNK_LENGTH:
+                return False
+            
+            recent_chunks.append(new_chunk)
+            # Keep only the last N chunks for comparison
+            if len(recent_chunks) > REPETITION_THRESHOLD * 2:
+                recent_chunks.pop(0)
+            
+            if len(recent_chunks) < REPETITION_THRESHOLD:
+                return False
+            
+            # Check if last N chunks are identical
+            last_chunks = recent_chunks[-REPETITION_THRESHOLD:]
+            if all(chunk == last_chunks[0] for chunk in last_chunks):
+                return True
+            
+            # Check for pattern repetition in accumulated text
+            accumulated = "".join(recent_chunks[-REPETITION_THRESHOLD:])
+            chunk_len = len(new_chunk.strip())
+            if chunk_len > 0 and len(accumulated) >= chunk_len * REPETITION_THRESHOLD:
+                pattern = new_chunk.strip()
+                if accumulated.count(pattern) >= REPETITION_THRESHOLD:
+                    return True
+            
+            return False
+        
         try:
             messages = chat_request.messages
             if len(messages) > MAX_MESSAGES:
@@ -81,8 +115,8 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
             config = {"configurable": {"thread_id": run_id}}
             
             async for event in app_graph.astream_events(inputs, config=config, version="v2"):
-                # Check if client disconnected
-                if await request.is_disconnected():
+                # Check if client disconnected or repetition detected
+                if await request.is_disconnected() or repetition_detected:
                     break
                     
                 kind = event["event"]
@@ -117,6 +151,12 @@ async def chat_stream(request: Request, chat_request: ChatRequest):
                     if node_name in ["generate_answer", "generate_query_or_respond"]:
                         chunk = event["data"].get("chunk")
                         if chunk and chunk.content:
+                            # Check for repetition before yielding
+                            if check_repetition(chunk.content):
+                                print(f"[{run_id}] Repetition detected, closing stream")
+                                repetition_detected = True
+                                break
+                            
                             has_content = True
                             event_data = {"type": "token", "data": chunk.content}
                             yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
