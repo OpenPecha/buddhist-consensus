@@ -536,7 +536,8 @@
     </div>
 
     <script>
-        const API_URL = 'https://buddhist-consensus.onrender.com/api/chat/stream';
+        let baseUrl = window.location.href;
+        const API_URL = `${baseUrl}api/chat/stream`;
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');

@@ -3,3 +3,5 @@ outputs/
 .DS_Store
 *.json
 .ipynb
+venv
+__pycache__
