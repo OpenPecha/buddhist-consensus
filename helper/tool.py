@@ -1,5 +1,5 @@
 import json
-from db import milvus_client
+from db import get_milvus_client
 from langchain_core.tools import tool
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -116,7 +116,7 @@ def hybrid_search_tool(query: str):
             )
             
             # Hybrid Search
-            res = milvus_client.hybrid_search(
+            res = get_milvus_client().hybrid_search(
                 collection_name=MILVUS_COLLECTION_NAME,
                 reqs=[req_bm25, req_dense],
                 ranker=RRFRanker(),

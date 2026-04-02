@@ -1,6 +1,6 @@
 from fastapi import APIRouter, FastAPI, HTTPException
 
-from db import MILVUS_COLLECTION_NAME, milvus_client
+from db import MILVUS_COLLECTION_NAME, get_milvus_client
 from helper.chat_utils import build_children_filter_from_parents, build_filter_expression, combine_filters
 from helper.search_functions import perform_bm25_search, perform_exact_search, perform_hybrid_search, perform_semantic_search
 from type.search import SearchRequest, SearchResponse
@@ -27,11 +27,14 @@ async def info():
     }
 
 @search_router.get("/debug", tags=["search"])
-async def debug_search():
+def debug_search():
     """Debug endpoint to test basic search functionality."""
+    import sys
+    print('DEBUG ENDPOINT HIT', flush=True)
+    sys.stdout.flush()
     try:
         # Test basic BM25 search without any fancy options
-        results = milvus_client.search(
+        results = get_milvus_client().search(
             collection_name=MILVUS_COLLECTION_NAME,
             data=["how to worry less?"],
             anns_field="sparce_vector",
@@ -55,11 +58,12 @@ async def debug_search():
 
 
 @search_router.post("", tags=["search"])
-async def unified_search_post(req: SearchRequest):
+def unified_search_post(req: SearchRequest):
     """
     Unified search endpoint (POST) accepting JSON body.
     Mirrors the GET /search behavior using the SearchRequest schema.
     """
+    print(req)
     try:
         search_type_lower = req.search_type.lower()
         
@@ -73,17 +77,18 @@ async def unified_search_post(req: SearchRequest):
         
         # Build base filter expression from structured filter
         base_filter_expr = build_filter_expression(req.filter)
+        print(base_filter_expr)
         
         # If not hierarchical, run single-stage as before
         if not req.hierarchical:
             if search_type_lower == "hybrid":
-                return await perform_hybrid_search(req.query, req.limit, base_filter_expr, req.return_text)
+                return perform_hybrid_search(req.query, req.limit, base_filter_expr, req.return_text)
             elif search_type_lower == "bm25":
-                return await perform_bm25_search(req.query, req.limit, base_filter_expr, req.return_text)
+                return perform_bm25_search(req.query, req.limit, base_filter_expr, req.return_text)
             elif search_type_lower == "semantic":
-                return await perform_semantic_search(req.query, req.limit, base_filter_expr, req.return_text)
+                return perform_semantic_search(req.query, req.limit, base_filter_expr, req.return_text)
             elif search_type_lower == "exact":
-                return await perform_exact_search(req.query, req.limit, base_filter_expr, req.return_text)
+                return perform_exact_search(req.query, req.limit, base_filter_expr, req.return_text)
         
         # Hierarchical: parents -> children; return only children
         parent_limit = req.parent_limit if req.parent_limit is not None else req.limit
@@ -91,13 +96,13 @@ async def unified_search_post(req: SearchRequest):
         
         # Stage 1: parents (no text needed)
         if search_type_lower == "hybrid":
-            parent_resp = await perform_hybrid_search(req.query, parent_limit, parent_stage_filter, return_text=False)
+            parent_resp = perform_hybrid_search(req.query, parent_limit, parent_stage_filter, return_text=False)
         elif search_type_lower == "bm25":
-            parent_resp = await perform_bm25_search(req.query, parent_limit, parent_stage_filter, return_text=False)
+            parent_resp = perform_bm25_search(req.query, parent_limit, parent_stage_filter, return_text=False)
         elif search_type_lower == "semantic":
-            parent_resp = await perform_semantic_search(req.query, parent_limit, parent_stage_filter, return_text=False)
+            parent_resp = perform_semantic_search(req.query, parent_limit, parent_stage_filter, return_text=False)
         else:  # exact
-            parent_resp = await perform_exact_search(req.query, parent_limit, parent_stage_filter, return_text=False)
+            parent_resp = perform_exact_search(req.query, parent_limit, parent_stage_filter, return_text=False)
         
         parent_ids = [r.id for r in parent_resp.results]
         if not parent_ids:
@@ -107,13 +112,13 @@ async def unified_search_post(req: SearchRequest):
         
         # Stage 2: children (respect return_text)
         if search_type_lower == "hybrid":
-            return await perform_hybrid_search(req.query, req.limit, children_filter_expr, req.return_text)
+            return perform_hybrid_search(req.query, req.limit, children_filter_expr, req.return_text)
         elif search_type_lower == "bm25":
-            return await perform_bm25_search(req.query, req.limit, children_filter_expr, req.return_text)
+            return perform_bm25_search(req.query, req.limit, children_filter_expr, req.return_text)
         elif search_type_lower == "semantic":
-            return await perform_semantic_search(req.query, req.limit, children_filter_expr, req.return_text)
+            return perform_semantic_search(req.query, req.limit, children_filter_expr, req.return_text)
         else:  # exact
-            return await perform_exact_search(req.query, req.limit, children_filter_expr, req.return_text)
+            return perform_exact_search(req.query, req.limit, children_filter_expr, req.return_text)
     except HTTPException:
         raise
     except Exception as e:

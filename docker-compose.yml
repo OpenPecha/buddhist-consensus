@@ -6,9 +6,18 @@ services:
       context: .
     working_dir: /app
     ports:
-      - "10000:10000"
+      - "127.0.0.1:10000:10000"
+      - "[::]:10000:10000"
     volumes:
       - ./:/app
+      - /app/.venv
+      - /app/.git
+      - /app/__pycache__
+      - /app/route/__pycache__
+      - /app/helper/__pycache__
+      - /app/type/__pycache__
+    env_file:
+      - .env
     command: >
       uvicorn main:app --host 0.0.0.0 --port 10000 --reload
     develop:
