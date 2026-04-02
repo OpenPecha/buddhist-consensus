@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, HTTPException,Depends,Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -277,8 +278,6 @@ async def health():
 
 
 if __name__ == "__main__":
-    is_dev = os.getenv('ENV') == 'development'
-    port=int(os.getenv('PORT',8000))
-    import uvicorn
-    uvicorn.run("main:app", port=port,reload=is_dev)
+    port=int(os.getenv('PORT',10000))
+    uvicorn.run("main:app", port=port,reload=True)
 

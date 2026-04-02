@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+    working_dir: /app
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./:/app
+    command: >
+      uvicorn main:app --host 0.0.0.0 --port 10000 --reload
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .git
+            - __pycache__
+            - .venv
+
+networks:
+  default:
+    name: buddhist-consensus-net
