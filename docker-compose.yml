@@ -6,8 +6,7 @@ services:
       context: .
     working_dir: /app
     ports:
-      - "127.0.0.1:10000:10000"
-      - "[::]:10000:10000"
+      - "10000:10000"
     volumes:
       - ./:/app
       - /app/.venv
